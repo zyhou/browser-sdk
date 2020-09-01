@@ -50,6 +50,10 @@ build:
   stage: test
   tags: ['runner:main', 'size:large']
   image: $CI_IMAGE
+  artifacts:
+    paths:
+      # used by report-build-metrics
+      - packages/*/bundle/*.js
   script:
     - yarn
     - yarn build
@@ -72,6 +76,9 @@ unit:
   artifacts:
     reports:
       junit: test-report/unit/*.xml
+    paths:
+      # used by report-build-metrics
+      - coverage/coverage-final.json
   script:
     - yarn
     - yarn test:unit
@@ -198,6 +205,19 @@ deploy-release:
 ########################################################################################################################
 
 include: 'https://gitlab-templates.ddbuild.io/slack-notifier/v1/template.yml'
+
+report-build-metrics:
+  # TODO
+  # only:
+  #   refs:
+  #     - master
+  stage: notify
+  tags: ['runner:main', 'size:large']
+  image: $CI_IMAGE
+  allow_failure: true
+  script:
+    - env
+    - node ./scripts/report-build-metrics.js
 
 notify-feature-branch-failure:
   extends: .slack-notifier.on-failure

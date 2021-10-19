@@ -159,7 +159,7 @@ unit:
   script:
     - yarn
     - yarn test:unit
-    - ./scripts/codecov.sh
+    - node scripts/codecov.js
 
 e2e:
   extends:

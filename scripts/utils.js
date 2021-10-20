@@ -42,9 +42,9 @@ async function executeCommand(command, envVariables) {
   return commandResult.stdout
 }
 
-async function spawnCommand(command, args) {
+async function spawnCommand(command, args, envVariables) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: 'inherit', shell: true })
+    const child = spawn(command, args, { stdio: 'inherit', shell: true, env: { ...process.env, ...envVariables } })
     child.on('error', reject)
     child.on('close', resolve)
     child.on('exit', resolve)

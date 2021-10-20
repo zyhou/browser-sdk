@@ -193,7 +193,7 @@ unit-bs:
       junit: test-report/unit-bs/*.xml
   script:
     - yarn
-    - ./scripts/ci-bs.sh test:unit
+    - node scripts/ci-bs.js test:unit
 
 e2e-bs:
   stage: browserstack
@@ -210,7 +210,7 @@ e2e-bs:
 
   script:
     - yarn
-    - ./scripts/ci-bs.sh test:e2e
+    - node scripts/ci-bs.js test:e2e
 
 export-test-result:
   stage: notify

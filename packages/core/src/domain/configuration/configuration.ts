@@ -1,5 +1,3 @@
-import type { CookieOptions } from '../../browser/cookie'
-import { getCurrentSite } from '../../browser/cookie'
 import { catchUserErrors } from '../../tools/catchUserErrors'
 import { display } from '../../tools/display'
 import type { RawTelemetryConfiguration } from '../telemetry'
@@ -10,6 +8,9 @@ import { isPercentage } from '../../tools/utils/numberUtils'
 import { ONE_KIBI_BYTE } from '../../tools/utils/byteUtils'
 import { objectHasValue } from '../../tools/utils/objectUtils'
 import { assign } from '../../tools/utils/polyfills'
+import { getSessionStoreStrategyType } from '../session/sessionStore'
+import type { SessionStoreOptions, SessionStoreStrategyType } from '../session/storeStrategies/sessionStoreStrategy'
+import { buildCookieOptions } from '../session/storeStrategies/sessionInCookie'
 import type { TransportConfiguration } from './transportConfiguration'
 import { computeTransportConfiguration } from './transportConfiguration'
 
@@ -44,6 +45,9 @@ export interface InitConfiguration {
   useSecureSessionCookie?: boolean | undefined
   trackSessionAcrossSubdomains?: boolean | undefined
 
+  // alternate storage option
+  allowFallbackToLocalStorage?: boolean | undefined
+
   // internal options
   enableExperimentalFeatures?: string[] | undefined
   replica?: ReplicaUserConfiguration | undefined
@@ -65,7 +69,8 @@ interface ReplicaUserConfiguration {
 export interface Configuration extends TransportConfiguration {
   // Built from init configuration
   beforeSend: GenericBeforeSendCallback | undefined
-  cookieOptions: CookieOptions
+  sessionStoreOptions: SessionStoreOptions
+  sessionStoreStrategyType: SessionStoreStrategyType | undefined
   sessionSampleRate: number
   telemetrySampleRate: number
   telemetryConfigurationSampleRate: number
@@ -116,11 +121,18 @@ export function validateAndBuildConfiguration(initConfiguration: InitConfigurati
     )
   }
 
+  // Build Session Store options
+  const sessionStoreOptions: SessionStoreOptions = {
+    cookie: buildCookieOptions(initConfiguration),
+    allowFallbackToLocalStorage: !!initConfiguration.allowFallbackToLocalStorage,
+  }
+
   return assign(
     {
       beforeSend:
         initConfiguration.beforeSend && catchUserErrors(initConfiguration.beforeSend, 'beforeSend threw an error:'),
-      cookieOptions: buildCookieOptions(initConfiguration),
+      sessionStoreOptions,
+      sessionStoreStrategyType: getSessionStoreStrategyType(sessionStoreOptions),
       sessionSampleRate: initConfiguration.sessionSampleRate ?? 100,
       telemetrySampleRate: initConfiguration.telemetrySampleRate ?? 20,
       telemetryConfigurationSampleRate: initConfiguration.telemetryConfigurationSampleRate ?? 5,
@@ -150,23 +162,6 @@ export function validateAndBuildConfiguration(initConfiguration: InitConfigurati
     },
     computeTransportConfiguration(initConfiguration)
   )
-}
-
-export function buildCookieOptions(initConfiguration: InitConfiguration) {
-  const cookieOptions: CookieOptions = {}
-
-  cookieOptions.secure = mustUseSecureCookie(initConfiguration)
-  cookieOptions.crossSite = !!initConfiguration.useCrossSiteSessionCookie
-
-  if (initConfiguration.trackSessionAcrossSubdomains) {
-    cookieOptions.domain = getCurrentSite()
-  }
-
-  return cookieOptions
-}
-
-function mustUseSecureCookie(initConfiguration: InitConfiguration) {
-  return !!initConfiguration.useSecureSessionCookie || !!initConfiguration.useCrossSiteSessionCookie
 }
 
 export function serializeConfiguration(configuration: InitConfiguration): Partial<RawTelemetryConfiguration> {

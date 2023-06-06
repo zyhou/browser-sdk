@@ -20,7 +20,11 @@ import {
 
 describe('logs session manager', () => {
   const DURATION = 123456
-  const configuration: Partial<LogsConfiguration> = { sessionSampleRate: 0.5 }
+  const configuration: Partial<LogsConfiguration> = {
+    sessionSampleRate: 0.5,
+    sessionStoreStrategyType: 'COOKIE',
+    sessionStoreOptions: { cookie: {}, allowFallbackToLocalStorage: false },
+  }
   let clock: Clock
   let tracked: boolean
 

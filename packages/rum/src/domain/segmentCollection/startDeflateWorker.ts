@@ -36,14 +36,18 @@ export interface DeflateWorker extends Worker {
   postMessage(message: DeflateWorkerAction): void
 }
 
-let workerURL: string | undefined
+let workerBlobUrl: string | undefined
 
-export function createDeflateWorker(): DeflateWorker {
+function createWorkerBlobUrl() {
   // Lazily compute the worker URL to allow importing the SDK in NodeJS
-  if (!workerURL) {
-    workerURL = URL.createObjectURL(new Blob([workerString]))
+  if (!workerBlobUrl) {
+    workerBlobUrl = URL.createObjectURL(new Blob([workerString]))
   }
-  return new Worker(workerURL)
+  return workerBlobUrl
+}
+
+export function createDeflateWorker(configuration: RumConfiguration): DeflateWorker {
+  return new Worker(configuration.workerUrl || createWorkerBlobUrl())
 }
 
 let state: DeflateWorkerState = { status: DeflateWorkerStatus.Nil }
@@ -85,7 +89,7 @@ export function resetDeflateWorkerState() {
  */
 export function doStartDeflateWorker(configuration: RumConfiguration, createDeflateWorkerImpl = createDeflateWorker) {
   try {
-    const worker = createDeflateWorkerImpl()
+    const worker = createDeflateWorkerImpl(configuration)
     addEventListener(configuration, worker, 'error', onError)
     addEventListener(configuration, worker, 'message', ({ data }: MessageEvent<DeflateWorkerResponse>) => {
       if (data.type === 'errored') {

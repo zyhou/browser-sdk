@@ -1,4 +1,4 @@
-import { addTelemetryDebug, assign, sendToExtension, addEventListener } from '@datadog/browser-core'
+import { addTelemetryDebug, assign, sendToExtension, addEventListener, concatBuffers } from '@datadog/browser-core'
 import type { DeflateWorkerResponse } from '@datadog/browser-worker'
 import type { RumConfiguration } from '@datadog/browser-rum-core'
 import type { BrowserRecord, BrowserSegmentMetadata, CreationReason, SegmentContext } from '../../types'
@@ -118,15 +118,4 @@ export class Segment {
       action: 'write',
     })
   }
-}
-
-function concatBuffers(buffers: Uint8Array[]) {
-  const length = buffers.reduce((total, buffer) => total + buffer.length, 0)
-  const result = new Uint8Array(length)
-  let offset = 0
-  for (const buffer of buffers) {
-    result.set(buffer, offset)
-    offset += buffer.length
-  }
-  return result
 }

@@ -1002,7 +1002,7 @@ export interface CommonProperties {
     /**
      * The list of available network interfaces
      */
-    readonly interfaces: (
+    readonly interfaces?: (
       | 'bluetooth'
       | 'cellular'
       | 'ethernet'
@@ -1013,6 +1013,10 @@ export interface CommonProperties {
       | 'unknown'
       | 'none'
     )[]
+    /**
+     * Effective type of the network connection
+     */
+    readonly effective_type?: 'slow_2g' | '2g' | '3g' | '4g'
     /**
      * Cellular connectivity properties
      */

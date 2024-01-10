@@ -950,7 +950,7 @@ export interface CommonProperties {
   /**
    * The source of this event
    */
-  readonly source?: 'android' | 'ios' | 'browser' | 'flutter' | 'react-native' | 'roku'
+  readonly source?: 'android' | 'ios' | 'browser' | 'flutter' | 'react-native' | 'roku' | 'unity'
   /**
    * View properties
    */
@@ -1014,7 +1014,7 @@ export interface CommonProperties {
       | 'none'
     )[]
     /**
-     * Effective type of the network connection
+     * Cellular connection type reflecting the measured network performance
      */
     readonly effective_type?: 'slow_2g' | '2g' | '3g' | '4g'
     /**
@@ -1207,7 +1207,7 @@ export interface ViewContainerSchema {
     /**
      * Source of the parent view
      */
-    readonly source: 'android' | 'ios' | 'browser' | 'flutter' | 'react-native' | 'roku'
+    readonly source: 'android' | 'ios' | 'browser' | 'flutter' | 'react-native' | 'roku' | 'unity'
     [k: string]: unknown
   }
   [k: string]: unknown

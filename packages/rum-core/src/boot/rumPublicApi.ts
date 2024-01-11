@@ -92,6 +92,10 @@ export function makeRumPublicApi(
   )
   const userContextManager = createContextManager(customerDataTrackerManager.getOrCreateTracker(CustomerDataType.User))
 
+  function getCommonContext() {
+    return buildCommonContext(globalContextManager, userContextManager, recorderApi)
+  }
+
   let getInternalContextStrategy: StartRumResult['getInternalContext'] = () => undefined
   let getInitConfigurationStrategy = (): InitConfiguration | undefined => undefined
   let stopSessionStrategy: () => void = noop
@@ -103,16 +107,10 @@ export function makeRumPublicApi(
   let startViewStrategy: StartRumResult['startView'] = (options, startClocks = clocksNow()) => {
     bufferApiCalls.add(() => startViewStrategy(options, startClocks))
   }
-  let addActionStrategy: StartRumResult['addAction'] = (
-    action,
-    commonContext = buildCommonContext(globalContextManager, userContextManager, recorderApi)
-  ) => {
+  let addActionStrategy: StartRumResult['addAction'] = (action, commonContext = getCommonContext()) => {
     bufferApiCalls.add(() => addActionStrategy(action, commonContext))
   }
-  let addErrorStrategy: StartRumResult['addError'] = (
-    providedError,
-    commonContext = buildCommonContext(globalContextManager, userContextManager, recorderApi)
-  ) => {
+  let addErrorStrategy: StartRumResult['addError'] = (providedError, commonContext = getCommonContext()) => {
     bufferApiCalls.add(() => addErrorStrategy(providedError, commonContext))
   }
 
@@ -209,8 +207,7 @@ export function makeRumPublicApi(
       configuration,
       recorderApi,
       customerDataTrackerManager,
-      globalContextManager,
-      userContextManager,
+      getCommonContext,
       initialViewOptions,
       deflateWorker && createDeflateEncoder
         ? (streamId) => createDeflateEncoder(configuration, deflateWorker!, streamId)

@@ -209,7 +209,7 @@ describe('rum public api', () => {
           rumPublicApi.init(DEFAULT_INIT_CONFIGURATION)
 
           expect(startDeflateWorkerSpy).not.toHaveBeenCalled()
-          const createEncoder: (streamId: DeflateEncoderStreamId) => Encoder = startRumSpy.calls.mostRecent().args[7]
+          const createEncoder: (streamId: DeflateEncoderStreamId) => Encoder = startRumSpy.calls.mostRecent().args[6]
           expect(createEncoder).toBe(createIdentityEncoder)
         })
       })
@@ -222,7 +222,7 @@ describe('rum public api', () => {
           })
 
           expect(startDeflateWorkerSpy).toHaveBeenCalledTimes(1)
-          const createEncoder: (streamId: DeflateEncoderStreamId) => Encoder = startRumSpy.calls.mostRecent().args[7]
+          const createEncoder: (streamId: DeflateEncoderStreamId) => Encoder = startRumSpy.calls.mostRecent().args[6]
           expect(createEncoder).not.toBe(createIdentityEncoder)
         })
 
@@ -896,7 +896,7 @@ describe('rum public api', () => {
 
         rumPublicApi.init(MANUAL_CONFIGURATION)
         expect(startRumSpy).toHaveBeenCalled()
-        const initialViewOptions: ViewOptions | undefined = startRumSpy.calls.argsFor(0)[6]
+        const initialViewOptions: ViewOptions | undefined = startRumSpy.calls.argsFor(0)[5]
         expect(initialViewOptions).toEqual({ name: 'foo' })
         expect(recorderApiOnRumStartSpy).toHaveBeenCalled()
         expect(startViewSpy).not.toHaveBeenCalled()
@@ -909,7 +909,7 @@ describe('rum public api', () => {
 
         rumPublicApi.startView('foo')
         expect(startRumSpy).toHaveBeenCalled()
-        const initialViewOptions: ViewOptions | undefined = startRumSpy.calls.argsFor(0)[6]
+        const initialViewOptions: ViewOptions | undefined = startRumSpy.calls.argsFor(0)[5]
         expect(initialViewOptions).toEqual({ name: 'foo' })
         expect(recorderApiOnRumStartSpy).toHaveBeenCalled()
         expect(startViewSpy).not.toHaveBeenCalled()
@@ -921,7 +921,7 @@ describe('rum public api', () => {
         rumPublicApi.startView('bar')
 
         expect(startRumSpy).toHaveBeenCalled()
-        const initialViewOptions: ViewOptions | undefined = startRumSpy.calls.argsFor(0)[6]
+        const initialViewOptions: ViewOptions | undefined = startRumSpy.calls.argsFor(0)[5]
         expect(initialViewOptions).toEqual({ name: 'foo' })
         expect(recorderApiOnRumStartSpy).toHaveBeenCalled()
         expect(startViewSpy).toHaveBeenCalled()
@@ -1015,18 +1015,18 @@ describe('rum public api', () => {
       )
     })
 
-    it('api calls before init are performed after onRumStart', () => {
-      // in order to let recording initial state to be defined by init configuration
-      const callOrders: string[] = []
-      spyOn(recorderApi, 'start').and.callFake(() => callOrders.push('start'))
-      spyOn(recorderApi, 'stop').and.callFake(() => callOrders.push('stop'))
-      recorderApiOnRumStartSpy.and.callFake(() => callOrders.push('onRumStart'))
+    it('public api calls are forwarded to the recorder api', () => {
+      spyOn(recorderApi, 'start')
+      spyOn(recorderApi, 'stop')
+      spyOn(recorderApi, 'getSessionReplayLink')
 
       rumPublicApi.startSessionReplayRecording()
       rumPublicApi.stopSessionReplayRecording()
-      rumPublicApi.init(DEFAULT_INIT_CONFIGURATION)
+      rumPublicApi.getSessionReplayLink()
 
-      expect(callOrders).toEqual(['onRumStart', 'start', 'stop'])
+      expect(recorderApi.start).toHaveBeenCalledTimes(1)
+      expect(recorderApi.stop).toHaveBeenCalledTimes(1)
+      expect(recorderApi.getSessionReplayLink).toHaveBeenCalledTimes(1)
     })
 
     it('is started with the default startSessionReplayRecordingManually', () => {

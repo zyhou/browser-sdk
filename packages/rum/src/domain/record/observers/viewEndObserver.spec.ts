@@ -1,4 +1,5 @@
 import { LifeCycle, LifeCycleEventType } from '@datadog/browser-rum-core'
+import { clocksNow } from '@datadog/browser-core'
 import { RecordType } from '../../../types'
 import type { ViewEndCallback } from './viewEndObserver'
 import { initViewEndObserver } from './viewEndObserver'
@@ -19,11 +20,15 @@ describe('initMoveObserver', () => {
   })
 
   it('should generate view end record', () => {
-    lifeCycle.notify(LifeCycleEventType.VIEW_ENDED, {} as any)
+    const clock = clocksNow()
+    lifeCycle.notify(LifeCycleEventType.VIEW_ENDED, { endClocks: clock } as any)
 
-    expect(viewEndCb).toHaveBeenCalledWith({
-      timestamp: jasmine.any(Number),
-      type: RecordType.ViewEnd,
-    })
+    expect(viewEndCb).toHaveBeenCalledWith(
+      {
+        timestamp: clock.timeStamp,
+        type: RecordType.ViewEnd,
+      },
+      clock.relative
+    )
   })
 })

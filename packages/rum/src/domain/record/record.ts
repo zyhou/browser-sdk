@@ -1,5 +1,5 @@
-import type { RelativeTime, TimeStamp } from '@datadog/browser-core'
-import { getRelativeTime, sendToExtension, timeStampNow } from '@datadog/browser-core'
+import type { RelativeTime } from '@datadog/browser-core'
+import { sendToExtension, timeStampNow } from '@datadog/browser-core'
 import type { LifeCycle, RumConfiguration, ViewContexts } from '@datadog/browser-rum-core'
 import type {
   BrowserMutationData,
@@ -45,9 +45,10 @@ export function record(options: RecordOptions): RecordAPI {
   const emitAndComputeStats = (record: BrowserRecord, startTime?: RelativeTime) => {
     emit(record, startTime)
     sendToExtension('record', { record })
-    const relative = startTime ?? getRelativeTime(record.timestamp as TimeStamp)
-    const view = options.viewContexts.findView(relative)!
-    replayStats.addRecord(view.id)
+    const view = options.viewContexts.findView()
+    if (view) {
+      replayStats.addRecord(view.id)
+    }
   }
 
   const elementsScrollPositions = createElementsScrollPositions()

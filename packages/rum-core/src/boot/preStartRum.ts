@@ -9,6 +9,7 @@ import {
   timeStampNow,
   clocksNow,
   assign,
+  getEventBridge,
 } from '@datadog/browser-core'
 import {
   validateAndBuildRumConfiguration,
@@ -164,5 +165,6 @@ function overrideInitConfigurationForBridge(initConfiguration: RumInitConfigurat
     applicationId: '00000000-aaaa-0000-aaaa-000000000000',
     clientToken: 'empty',
     sessionSampleRate: 100,
+    defaultPrivacyLevel: initConfiguration.defaultPrivacyLevel ?? getEventBridge()?.getPrivacyLevel(),
   })
 }

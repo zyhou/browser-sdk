@@ -3,7 +3,6 @@ import { display, getTimeStamp, noop, relativeToClocks, clocksNow } from '@datad
 import type { Clock } from '@datadog/browser-core/test'
 import {
   cleanupSyntheticsWorkerValues,
-  deleteEventBridgeStub,
   initEventBridgeStub,
   mockClock,
   mockSyntheticsWorkerValues,
@@ -93,10 +92,6 @@ describe('preStartRum', () => {
         initEventBridgeStub()
       })
 
-      afterEach(() => {
-        deleteEventBridgeStub()
-      })
-
       it('init should accept empty application id and client token', () => {
         const hybridInitConfiguration: HybridInitConfiguration = {}
         strategy.init(hybridInitConfiguration as RumInitConfiguration)
@@ -178,10 +173,6 @@ describe('preStartRum', () => {
           getCommonContextSpy,
           doStartRumSpy
         )
-      })
-
-      afterEach(() => {
-        deleteEventBridgeStub()
       })
 
       describe('with compressIntakeRequests: false', () => {

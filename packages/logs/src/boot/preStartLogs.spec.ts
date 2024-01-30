@@ -1,4 +1,4 @@
-import { mockClock, type Clock, deleteEventBridgeStub, initEventBridgeStub } from '@datadog/browser-core/test'
+import { mockClock, type Clock, initEventBridgeStub } from '@datadog/browser-core/test'
 import type { TimeStamp } from '@datadog/browser-core'
 import { ONE_SECOND, display } from '@datadog/browser-core'
 import type { CommonContext } from '../rawLogsEvent.types'
@@ -96,10 +96,6 @@ describe('preStartLogs', () => {
     describe('if event bridge present', () => {
       beforeEach(() => {
         initEventBridgeStub()
-      })
-
-      afterEach(() => {
-        deleteEventBridgeStub()
       })
 
       it('init should accept empty client token', () => {

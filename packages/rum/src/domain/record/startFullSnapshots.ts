@@ -1,6 +1,7 @@
 import { LifeCycleEventType, getScrollX, getScrollY, getViewportDimension } from '@datadog/browser-rum-core'
 import type { RumConfiguration, LifeCycle } from '@datadog/browser-rum-core'
-import { timeStampNow } from '@datadog/browser-core'
+import type { RelativeTime } from '@datadog/browser-core'
+import { clocksNow } from '@datadog/browser-core'
 import type { BrowserRecord } from '../../types'
 import { RecordType } from '../../types'
 import type { ElementsScrollPositions } from './elementsScrollPositions'
@@ -14,10 +15,10 @@ export function startFullSnapshots(
   lifeCycle: LifeCycle,
   configuration: RumConfiguration,
   flushMutations: () => void,
-  fullSnapshotCallback: (records: BrowserRecord[]) => void
+  fullSnapshotCallback: (records: BrowserRecord[], startTime: RelativeTime) => void
 ) {
   const takeFullSnapshot = (
-    timestamp = timeStampNow(),
+    startClocks = clocksNow(),
     serializationContext = {
       status: SerializationContextStatus.INITIAL_FULL_SNAPSHOT,
       elementsScrollPositions,
@@ -33,14 +34,14 @@ export function startFullSnapshots(
           width,
         },
         type: RecordType.Meta,
-        timestamp,
+        timestamp: startClocks.timeStamp,
       },
       {
         data: {
           has_focus: document.hasFocus(),
         },
         type: RecordType.Focus,
-        timestamp,
+        timestamp: startClocks.timeStamp,
       },
       {
         data: {
@@ -51,7 +52,7 @@ export function startFullSnapshots(
           },
         },
         type: RecordType.FullSnapshot,
-        timestamp,
+        timestamp: startClocks.timeStamp,
       },
     ]
 
@@ -59,22 +60,24 @@ export function startFullSnapshots(
       records.push({
         data: getVisualViewport(window.visualViewport),
         type: RecordType.VisualViewport,
-        timestamp,
+        timestamp: startClocks.timeStamp,
       })
     }
     return records
   }
 
-  fullSnapshotCallback(takeFullSnapshot())
+  const startClocks = clocksNow()
+  fullSnapshotCallback(takeFullSnapshot(startClocks), startClocks.relative)
 
   const { unsubscribe } = lifeCycle.subscribe(LifeCycleEventType.VIEW_CREATED, (view) => {
     flushMutations()
     fullSnapshotCallback(
-      takeFullSnapshot(view.startClocks.timeStamp, {
+      takeFullSnapshot(view.startClocks, {
         shadowRootsController,
         status: SerializationContextStatus.SUBSEQUENT_FULL_SNAPSHOT,
         elementsScrollPositions,
-      })
+      }),
+      view.startClocks.relative
     )
   })
 

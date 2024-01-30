@@ -28,9 +28,9 @@ export function startRecording(
     createHttpRequest(configuration, configuration.sessionReplayEndpointBuilder, SEGMENT_BYTES_LIMIT, reportError)
 
   let addRecord: (record: BrowserRecord) => void
-  let stopSegmentCollection: () => void
 
   if (!canUseEventBridge()) {
+    let stopSegmentCollection: () => void
     ;({ addRecord, stop: stopSegmentCollection } = startSegmentCollection(
       lifeCycle,
       configuration,

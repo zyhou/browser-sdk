@@ -66,7 +66,7 @@ export function record(options: RecordOptions): RecordAPI {
     lifeCycle,
     configuration,
     flushMutations,
-    (records) => records.forEach((record) => emitAndComputeStats(record))
+    (records, startTime) => records.forEach((record) => emitAndComputeStats(record, startTime))
   )
 
   function flushMutations() {

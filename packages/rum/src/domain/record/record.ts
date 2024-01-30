@@ -1,4 +1,5 @@
-import { sendToExtension, timeStampNow } from '@datadog/browser-core'
+import type { RelativeTime, TimeStamp } from '@datadog/browser-core'
+import { getRelativeTime, sendToExtension, timeStampNow } from '@datadog/browser-core'
 import type { LifeCycle, RumConfiguration, ViewContexts } from '@datadog/browser-rum-core'
 import type {
   BrowserMutationData,
@@ -22,7 +23,7 @@ import type { InputCallback } from './observers'
 import { startFullSnapshots } from './startFullSnapshots'
 
 export interface RecordOptions {
-  emit?: (record: BrowserRecord) => void
+  emit?: (record: BrowserRecord, startTime?: RelativeTime) => void
   configuration: RumConfiguration
   lifeCycle: LifeCycle
   viewContexts: ViewContexts
@@ -41,13 +42,12 @@ export function record(options: RecordOptions): RecordAPI {
     throw new Error('emit function is required')
   }
 
-  const emitAndComputeStats = (record: BrowserRecord) => {
-    emit(record)
+  const emitAndComputeStats = (record: BrowserRecord, startTime?: RelativeTime) => {
+    emit(record, startTime)
     sendToExtension('record', { record })
-    const view = options.viewContexts.findView()
-    if (view) {
-      replayStats.addRecord(view.id)
-    }
+    const relative = startTime ?? getRelativeTime(record.timestamp as TimeStamp)
+    const view = options.viewContexts.findView(relative)!
+    replayStats.addRecord(view.id)
   }
 
   const elementsScrollPositions = createElementsScrollPositions()
@@ -66,7 +66,7 @@ export function record(options: RecordOptions): RecordAPI {
     lifeCycle,
     configuration,
     flushMutations,
-    (records) => records.forEach((record) => emitAndComputeStats(record))
+    (records, startTime) => records.forEach((record) => emitAndComputeStats(record, startTime))
   )
 
   function flushMutations() {
@@ -104,9 +104,9 @@ export function record(options: RecordOptions): RecordAPI {
         timestamp: timeStampNow(),
       })
     },
-    viewEndCb: (viewEndRecord) => {
+    viewEndCb: (viewEndRecord, startTime) => {
       flushMutations()
-      emitAndComputeStats(viewEndRecord)
+      emitAndComputeStats(viewEndRecord, startTime)
     },
     shadowRootsController,
   })

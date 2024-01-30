@@ -1,9 +1,9 @@
-import type { TimeStamp, HttpRequest, ClocksState } from '@datadog/browser-core'
+import type { TimeStamp, HttpRequest, ClocksState, RelativeTime } from '@datadog/browser-core'
 import { PageExitReason, DefaultPrivacyLevel, noop, isIE, DeflateEncoderStreamId } from '@datadog/browser-core'
 import type { LifeCycle, ViewCreatedEvent, RumConfiguration } from '@datadog/browser-rum-core'
 import { LifeCycleEventType } from '@datadog/browser-rum-core'
 import type { Clock } from '@datadog/browser-core/test'
-import { collectAsyncCalls, createNewEvent } from '@datadog/browser-core/test'
+import { collectAsyncCalls, createNewEvent, initEventBridgeStub } from '@datadog/browser-core/test'
 import type { RumSessionManagerMock, TestSetupBuilder } from '../../../rum-core/test'
 import { appendElement, createRumSessionManagerMock, setup } from '../../../rum-core/test'
 
@@ -209,8 +209,26 @@ describe('startRecording', () => {
     })
   })
 
+  it('should send records through the bridge when it is present', () => {
+    const eventBridgeStub = initEventBridgeStub()
+    setupBuilder.build()
+    const sendSpy = spyOn(eventBridgeStub, 'send')
+
+    document.body.dispatchEvent(createNewEvent('click', { clientX: 1, clientY: 2 }))
+
+    const lastBridgeMessage = JSON.parse(sendSpy.calls.mostRecent().args[0])
+
+    expect(lastBridgeMessage).toEqual({
+      eventType: 'record',
+      event: jasmine.objectContaining({ type: RecordType.IncrementalSnapshot }),
+      view: { id: viewId },
+    })
+  })
+
   function changeView(lifeCycle: LifeCycle) {
-    lifeCycle.notify(LifeCycleEventType.VIEW_ENDED, {} as any)
+    lifeCycle.notify(LifeCycleEventType.VIEW_ENDED, {
+      endClocks: { relative: 1 as RelativeTime, timeStamp: VIEW_TIMESTAMP },
+    })
     viewId = 'view-id-2'
     lifeCycle.notify(LifeCycleEventType.VIEW_CREATED, {
       startClocks: { relative: 1, timeStamp: VIEW_TIMESTAMP },

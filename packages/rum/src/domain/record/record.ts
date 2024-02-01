@@ -1,4 +1,3 @@
-import type { RelativeTime } from '@datadog/browser-core'
 import { sendToExtension, timeStampNow } from '@datadog/browser-core'
 import type { LifeCycle, RumConfiguration, ViewContexts } from '@datadog/browser-rum-core'
 import type {
@@ -23,7 +22,7 @@ import type { InputCallback } from './observers'
 import { startFullSnapshots } from './startFullSnapshots'
 
 export interface RecordOptions {
-  emit?: (record: BrowserRecord, startTime?: RelativeTime) => void
+  emit?: (record: BrowserRecord) => void
   configuration: RumConfiguration
   lifeCycle: LifeCycle
   viewContexts: ViewContexts
@@ -42,13 +41,11 @@ export function record(options: RecordOptions): RecordAPI {
     throw new Error('emit function is required')
   }
 
-  const emitAndComputeStats = (record: BrowserRecord, startTime?: RelativeTime) => {
-    emit(record, startTime)
+  const emitAndComputeStats = (record: BrowserRecord) => {
+    emit(record)
     sendToExtension('record', { record })
-    const view = options.viewContexts.findView()
-    if (view) {
-      replayStats.addRecord(view.id)
-    }
+    const view = options.viewContexts.findView()!
+    replayStats.addRecord(view.id)
   }
 
   const elementsScrollPositions = createElementsScrollPositions()
@@ -67,7 +64,7 @@ export function record(options: RecordOptions): RecordAPI {
     lifeCycle,
     configuration,
     flushMutations,
-    (records, startTime) => records.forEach((record) => emitAndComputeStats(record, startTime))
+    (records) => records.forEach((record) => emitAndComputeStats(record))
   )
 
   function flushMutations() {
@@ -105,9 +102,9 @@ export function record(options: RecordOptions): RecordAPI {
         timestamp: timeStampNow(),
       })
     },
-    viewEndCb: (viewEndRecord, startTime) => {
+    viewEndCb: (viewEndRecord) => {
       flushMutations()
-      emitAndComputeStats(viewEndRecord, startTime)
+      emitAndComputeStats(viewEndRecord)
     },
     shadowRootsController,
   })

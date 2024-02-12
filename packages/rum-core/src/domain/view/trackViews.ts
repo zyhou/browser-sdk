@@ -125,12 +125,12 @@ export function trackViews(
       })
     })
 
-    lifeCycle.subscribe(LifeCycleEventType.SESSION_EXPIRED, () => {
+    lifeCycle.subscribe(LifeCycleEventType.BEFORE_SESSION_EXPIRED, () => {
       currentView.end({ sessionIsActive: false })
     })
 
     // End the current view on page unload
-    lifeCycle.subscribe(LifeCycleEventType.PAGE_EXITED, (pageExitEvent) => {
+    lifeCycle.subscribe(LifeCycleEventType.BEFORE_PAGE_EXITED, (pageExitEvent) => {
       if (pageExitEvent.reason === PageExitReason.UNLOADING || pageExitEvent.reason === PageExitReason.PAGEHIDE) {
         currentView.end()
       }
@@ -189,13 +189,15 @@ function newView(
     version = viewOptions.version
   }
 
-  lifeCycle.notify(LifeCycleEventType.VIEW_CREATED, {
+  const viewCreatedEvent = {
     id,
     name,
     startClocks,
     service,
     version,
-  })
+  }
+  lifeCycle.notify(LifeCycleEventType.BEFORE_VIEW_CREATED, viewCreatedEvent)
+  lifeCycle.notify(LifeCycleEventType.VIEW_CREATED, viewCreatedEvent)
 
   // Update the view every time the measures are changing
   const { throttled: scheduleViewUpdate, cancel: cancelScheduleViewUpdate } = throttle(
@@ -271,6 +273,7 @@ function newView(
       endClocks = options.endClocks ?? clocksNow()
       sessionIsActive = options.sessionIsActive ?? true
 
+      lifeCycle.notify(LifeCycleEventType.BEFORE_VIEW_ENDED, { endClocks })
       lifeCycle.notify(LifeCycleEventType.VIEW_ENDED, { endClocks })
       clearInterval(keepAliveIntervalId)
       setViewEnd(endClocks.relative)

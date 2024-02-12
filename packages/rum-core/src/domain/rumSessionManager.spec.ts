@@ -22,6 +22,7 @@ import { RUM_SESSION_KEY, RumTrackingType, startRumSessionManager } from './rumS
 describe('rum session manager', () => {
   const DURATION = 123456
   let lifeCycle: LifeCycle
+  let beforeSessionExpireSpy: jasmine.Spy
   let expireSessionSpy: jasmine.Spy
   let renewSessionSpy: jasmine.Spy
   let clock: Clock
@@ -31,9 +32,12 @@ describe('rum session manager', () => {
       pending('no full rum support')
     }
     clock = mockClock()
+    beforeSessionExpireSpy = jasmine.createSpy('beforeSessionExpireSpy')
     expireSessionSpy = jasmine.createSpy('expireSessionSpy')
     renewSessionSpy = jasmine.createSpy('renewSessionSpy')
     lifeCycle = new LifeCycle()
+
+    lifeCycle.subscribe(LifeCycleEventType.SESSION_EXPIRED, beforeSessionExpireSpy)
     lifeCycle.subscribe(LifeCycleEventType.SESSION_EXPIRED, expireSessionSpy)
     lifeCycle.subscribe(LifeCycleEventType.SESSION_RENEWED, renewSessionSpy)
   })
@@ -50,6 +54,7 @@ describe('rum session manager', () => {
     it('when tracked with session replay should store session type and id', () => {
       startRumSessionManagerWithDefaults({ configuration: { sessionSampleRate: 100, sessionReplaySampleRate: 100 } })
 
+      expect(beforeSessionExpireSpy).not.toHaveBeenCalled()
       expect(expireSessionSpy).not.toHaveBeenCalled()
       expect(renewSessionSpy).not.toHaveBeenCalled()
       expect(getCookie(SESSION_STORE_KEY)).toContain(
@@ -61,6 +66,7 @@ describe('rum session manager', () => {
     it('when tracked without session replay should store session type and id', () => {
       startRumSessionManagerWithDefaults({ configuration: { sessionSampleRate: 100, sessionReplaySampleRate: 0 } })
 
+      expect(beforeSessionExpireSpy).not.toHaveBeenCalled()
       expect(expireSessionSpy).not.toHaveBeenCalled()
       expect(renewSessionSpy).not.toHaveBeenCalled()
       expect(getCookie(SESSION_STORE_KEY)).toContain(
@@ -72,6 +78,7 @@ describe('rum session manager', () => {
     it('when not tracked should store session type', () => {
       startRumSessionManagerWithDefaults({ configuration: { sessionSampleRate: 0 } })
 
+      expect(beforeSessionExpireSpy).not.toHaveBeenCalled()
       expect(expireSessionSpy).not.toHaveBeenCalled()
       expect(renewSessionSpy).not.toHaveBeenCalled()
       expect(getCookie(SESSION_STORE_KEY)).toContain(`${RUM_SESSION_KEY}=${RumTrackingType.NOT_TRACKED}`)
@@ -83,6 +90,7 @@ describe('rum session manager', () => {
 
       startRumSessionManagerWithDefaults()
 
+      expect(beforeSessionExpireSpy).not.toHaveBeenCalled()
       expect(expireSessionSpy).not.toHaveBeenCalled()
       expect(renewSessionSpy).not.toHaveBeenCalled()
       expect(getCookie(SESSION_STORE_KEY)).toContain(
@@ -96,6 +104,7 @@ describe('rum session manager', () => {
 
       startRumSessionManagerWithDefaults()
 
+      expect(beforeSessionExpireSpy).not.toHaveBeenCalled()
       expect(expireSessionSpy).not.toHaveBeenCalled()
       expect(renewSessionSpy).not.toHaveBeenCalled()
       expect(getCookie(SESSION_STORE_KEY)).toContain(`${RUM_SESSION_KEY}=${RumTrackingType.NOT_TRACKED}`)
@@ -108,12 +117,13 @@ describe('rum session manager', () => {
 
       setCookie(SESSION_STORE_KEY, '', DURATION)
       expect(getCookie(SESSION_STORE_KEY)).toBeUndefined()
+      expect(beforeSessionExpireSpy).not.toHaveBeenCalled()
       expect(expireSessionSpy).not.toHaveBeenCalled()
       expect(renewSessionSpy).not.toHaveBeenCalled()
       clock.tick(STORAGE_POLL_DELAY)
 
       document.dispatchEvent(createNewEvent(DOM_EVENT.CLICK))
-
+      expect(beforeSessionExpireSpy).toHaveBeenCalled()
       expect(expireSessionSpy).toHaveBeenCalled()
       expect(renewSessionSpy).toHaveBeenCalled()
       expect(getCookie(SESSION_STORE_KEY)).toContain(

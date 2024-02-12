@@ -96,6 +96,7 @@ export function startRum(
 
   const pageExitObservable = createPageExitObservable(configuration)
   const pageExitSubscription = pageExitObservable.subscribe((event) => {
+    lifeCycle.notify(LifeCycleEventType.BEFORE_PAGE_EXITED, event)
     lifeCycle.notify(LifeCycleEventType.PAGE_EXITED, event)
   })
   cleanupTasks.push(() => pageExitSubscription.unsubscribe())

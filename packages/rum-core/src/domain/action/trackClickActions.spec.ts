@@ -1,5 +1,5 @@
 import type { Context, Duration } from '@datadog/browser-core'
-import { addDuration, clocksNow, timeStampNow, relativeNow } from '@datadog/browser-core'
+import { addDuration, clocksNow, timeStampNow, relativeNow, isIE } from '@datadog/browser-core'
 import { createNewEvent } from '@datadog/browser-core/test'
 import type { TestSetupBuilder } from '../../../test'
 import { setup, createFakeClick } from '../../../test'
@@ -98,7 +98,7 @@ describe('trackClickActions', () => {
         frustrationTypes: [],
         target: {
           selector: '#button',
-          selector_for_action: jasmine.any(String),
+          selector_for_private_name: isIE() ? undefined : 'button#button',
           width: 100,
           height: 100,
         },

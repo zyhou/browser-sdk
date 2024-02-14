@@ -11,6 +11,9 @@ import {
   clocksNow,
   ONE_SECOND,
   elapsed,
+  isExperimentalFeatureEnabled,
+  ExperimentalFeature,
+  isIE,
 } from '@datadog/browser-core'
 import type { FrustrationType } from '../../rawRumEvent.types'
 import { ActionType } from '../../rawRumEvent.types'
@@ -39,7 +42,7 @@ export interface ClickAction {
   name: string
   target?: {
     selector: string
-    selector_with_stable_attributes?: string
+    selector_for_private_name?: string
     width: number
     height: number
   }
@@ -217,6 +220,14 @@ function computeClickActionBase(event: MouseEventOnElement, actionNameAttribute?
       width: Math.round(rect.width),
       height: Math.round(rect.height),
       selector: getSelectorFromElement(event.target, actionNameAttribute),
+      selector_for_private_name:
+        isExperimentalFeatureEnabled(ExperimentalFeature.SELECTOR_FOR_PRIVATE_ACTION_NAME) && !isIE()
+          ? getSelectorFromElement(event.target, actionNameAttribute, {
+              stopRecurringWhenUnique: true,
+              targetAtomicElement: true,
+              onlyPrefixWithSemanticTag: true,
+            })
+          : undefined,
     },
     position: {
       // Use clientX and Y because for SVG element offsetX and Y are relatives to the <svg> element

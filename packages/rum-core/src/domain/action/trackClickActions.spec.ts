@@ -98,7 +98,7 @@ describe('trackClickActions', () => {
         frustrationTypes: [],
         target: {
           selector: '#button',
-          selector_for_action: jasmine.any(String),
+          selector_for_private_name: jasmine.any(String),
           width: 100,
           height: 100,
         },

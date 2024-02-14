@@ -40,7 +40,7 @@ export interface ClickAction {
   name: string
   target?: {
     selector: string
-    selector_for_action?: string
+    selector_for_private_name?: string
     width: number
     height: number
   }
@@ -218,7 +218,7 @@ function computeClickActionBase(event: MouseEventOnElement, actionNameAttribute?
       width: Math.round(rect.width),
       height: Math.round(rect.height),
       selector: getSelectorFromElement(event.target, actionNameAttribute),
-      selector_for_action: getActionNameSelectorFromElement(event.target, actionNameAttribute),
+      selector_for_private_name: getActionNameSelectorFromElement(event.target, actionNameAttribute),
     },
     position: {
       // Use clientX and Y because for SVG element offsetX and Y are relatives to the <svg> element

@@ -1,5 +1,14 @@
 import type { Context, Duration } from '@datadog/browser-core'
-import { addDuration, clocksNow, timeStampNow, relativeNow } from '@datadog/browser-core'
+import {
+  addDuration,
+  clocksNow,
+  timeStampNow,
+  relativeNow,
+  isIE,
+  addExperimentalFeatures,
+  ExperimentalFeature,
+  resetExperimentalFeatures,
+} from '@datadog/browser-core'
 import { createNewEvent } from '@datadog/browser-core/test'
 import type { TestSetupBuilder } from '../../../test'
 import { setup, createFakeClick } from '../../../test'
@@ -70,6 +79,7 @@ describe('trackClickActions', () => {
     button.parentNode!.removeChild(button)
     emptyElement.parentNode!.removeChild(emptyElement)
     input.parentNode!.removeChild(input)
+    resetExperimentalFeatures()
   })
 
   it('starts a click action when clicking on an element', () => {
@@ -98,6 +108,7 @@ describe('trackClickActions', () => {
         frustrationTypes: [],
         target: {
           selector: '#button',
+          selector_for_private_name: undefined,
           width: 100,
           height: 100,
         },
@@ -105,6 +116,19 @@ describe('trackClickActions', () => {
         events: [domEvent],
       },
     ])
+  })
+
+  it('should collect selector_for_private_name if FF enabled ', () => {
+    if (isIE()) {
+      pending('IE is not supported')
+    }
+    addExperimentalFeatures([ExperimentalFeature.SELECTOR_FOR_PRIVATE_ACTION_NAME])
+    const { clock } = setupBuilder.build()
+    emulateClick({ activity: {} })
+    expect(findActionId()).not.toBeUndefined()
+    clock.tick(EXPIRE_DELAY)
+    createNewEvent('pointerup', { target: document.createElement('button') })
+    expect(events[0].target?.selector_for_private_name).toBe('#button')
   })
 
   it('should keep track of previously validated click actions', () => {

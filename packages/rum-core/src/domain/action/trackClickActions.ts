@@ -20,6 +20,7 @@ import { LifeCycleEventType } from '../lifeCycle'
 import { trackEventCounts } from '../trackEventCounts'
 import { PAGE_ACTIVITY_VALIDATION_DELAY, waitPageActivityEnd } from '../waitPageActivityEnd'
 import { getSelectorFromElement } from '../getSelectorFromElement'
+import { getActionNameSelectorFromElement } from '../getActionNameSelectorFromElement'
 import type { ClickChain } from './clickChain'
 import { createClickChain } from './clickChain'
 import { getActionNameFromElement } from './getActionNameFromElement'
@@ -39,7 +40,7 @@ export interface ClickAction {
   name: string
   target?: {
     selector: string
-    selector_with_stable_attributes?: string
+    selector_for_action?: string
     width: number
     height: number
   }
@@ -217,6 +218,7 @@ function computeClickActionBase(event: MouseEventOnElement, actionNameAttribute?
       width: Math.round(rect.width),
       height: Math.round(rect.height),
       selector: getSelectorFromElement(event.target, actionNameAttribute),
+      selector_for_action: getActionNameSelectorFromElement(event.target, actionNameAttribute),
     },
     position: {
       // Use clientX and Y because for SVG element offsetX and Y are relatives to the <svg> element

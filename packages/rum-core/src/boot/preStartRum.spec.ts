@@ -8,11 +8,11 @@ import {
   TrackingConsent,
   ExperimentalFeature,
   createTrackingConsentState,
+  DefaultPrivacyLevel,
 } from '@datadog/browser-core'
 import type { Clock } from '@datadog/browser-core/test'
 import {
   cleanupSyntheticsWorkerValues,
-  deleteEventBridgeStub,
   initEventBridgeStub,
   mockClock,
   mockExperimentalFeatures,
@@ -101,12 +101,9 @@ describe('preStartRum', () => {
     })
 
     describe('if event bridge present', () => {
+      const bridgePrivacyLevel = DefaultPrivacyLevel.ALLOW
       beforeEach(() => {
-        initEventBridgeStub()
-      })
-
-      afterEach(() => {
-        deleteEventBridgeStub()
+        initEventBridgeStub({ privacyLevel: bridgePrivacyLevel })
       })
 
       it('init should accept empty application id and client token', () => {
@@ -115,10 +112,24 @@ describe('preStartRum', () => {
         expect(display.error).not.toHaveBeenCalled()
       })
 
-      it('init should force session sample rate to 100', () => {
+      it('should force session sample rate to 100', () => {
         const invalidConfiguration: HybridInitConfiguration = { sessionSampleRate: 50 }
         strategy.init(invalidConfiguration as RumInitConfiguration)
         expect(strategy.initConfiguration?.sessionSampleRate).toEqual(100)
+      })
+
+      it('should set the default privacy level received from the bridge if the not provided in the init configuration', () => {
+        const hybridInitConfiguration: HybridInitConfiguration = {}
+        strategy.init(hybridInitConfiguration as RumInitConfiguration)
+        expect((strategy.initConfiguration as RumInitConfiguration)?.defaultPrivacyLevel).toEqual(bridgePrivacyLevel)
+      })
+
+      it('should set the default privacy level from the init configuration if provided', () => {
+        const hybridInitConfiguration: HybridInitConfiguration = { defaultPrivacyLevel: DefaultPrivacyLevel.MASK }
+        strategy.init(hybridInitConfiguration as RumInitConfiguration)
+        expect((strategy.initConfiguration as RumInitConfiguration)?.defaultPrivacyLevel).toEqual(
+          hybridInitConfiguration.defaultPrivacyLevel
+        )
       })
 
       it('should initialize even if session cannot be handled', () => {
@@ -193,10 +204,6 @@ describe('preStartRum', () => {
           createTrackingConsentState(),
           doStartRumSpy
         )
-      })
-
-      afterEach(() => {
-        deleteEventBridgeStub()
       })
 
       describe('with compressIntakeRequests: false', () => {

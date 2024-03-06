@@ -1,3 +1,4 @@
+import { isIE } from '@datadog/browser-core'
 import { appendElement } from '../../test'
 import { getSelectorFromElement, supportScopeSelector } from './getSelectorFromElement'
 
@@ -124,7 +125,7 @@ describe('getSelectorFromElement', () => {
     })
 
     it('attribute selector with the custom action name attribute takes precedence over other stable attribute selectors', () => {
-      expect(getSelector('<div action-name="foo" data-testid="bar"></div>', 'action-name')).toBe(
+      expect(getSelector('<div action-name="foo" data-testid="bar"></div>', undefined, 'action-name')).toBe(
         'DIV[action-name="foo"]'
       )
     })
@@ -157,10 +158,73 @@ describe('getSelectorFromElement', () => {
     })
   })
 
-  function getSelector(htmlOrElement: string | Element, actionNameAttribute?: string): string {
+  describe('should target closest meaningful element when targetMeaningfulElement: true', () => {
+    beforeEach(() => {
+      if (isIE()) {
+        pending('IE is not supported')
+      }
+    })
+
+    it('based on their tags', () => {
+      expect(getSelector('<button><span target><span></button>', { targetMeaningfulElement: true })).toBe('BODY>BUTTON')
+      expect(getSelector('<a><span target><span></a>', { targetMeaningfulElement: true })).toBe('BODY>A')
+      expect(getSelector('<select><option target><option></select>', { targetMeaningfulElement: true })).toBe(
+        'BODY>SELECT'
+      )
+    })
+
+    it('based on their role', () => {
+      expect(getSelector('<div role="link"><span target><span></a>', { targetMeaningfulElement: true })).toBe(
+        'BODY>DIV'
+      )
+    })
+
+    it('based on [aria-label]', () => {
+      expect(getSelector('<div aria-label="foo"><span target><span></a>', { targetMeaningfulElement: true })).toBe(
+        'BODY>DIV'
+      )
+    })
+
+    it('based on [alt]', () => {
+      expect(getSelector('<div  alt="foo"><span target><span></a>', { targetMeaningfulElement: true })).toBe('BODY>DIV')
+    })
+
+    it('based on [name]', () => {
+      expect(getSelector('<div name="foo"><span target><span></a>', { targetMeaningfulElement: true })).toBe('BODY>DIV')
+    })
+
+    it('based on [title]', () => {
+      expect(getSelector('<div title="foo"><span target><span></a>', { targetMeaningfulElement: true })).toBe(
+        'BODY>DIV'
+      )
+    })
+  })
+
+  it('should stop recurring when unique amongst the page when stopRecurringWhenUnique: true', () => {
+    expect(getSelector('<article><button target></button></article>', { stopRecurringWhenUnique: true })).toBe('BUTTON')
+  })
+
+  it('should only prefix with semantic tagName when onlyPrefixWithSemanticTag: true', () => {
+    expect(
+      getSelector('<article><div class="foo"><button target></button></div></article>', {
+        onlyPrefixWithSemanticTag: true,
+      })
+    ).toBe('BODY>ARTICLE>.foo>BUTTON')
+  })
+
+  function getSelector(
+    htmlOrElement: string | Element,
+    options?: {
+      stopRecurringWhenUnique?: boolean
+      targetMeaningfulElement?: boolean
+      onlyPrefixWithSemanticTag?: boolean
+    },
+    actionNameAttribute?: string
+  ): string {
     return getSelectorFromElement(
       typeof htmlOrElement === 'string' ? appendElement(htmlOrElement) : htmlOrElement,
-      actionNameAttribute
+      actionNameAttribute,
+      options
     )
   }
 })

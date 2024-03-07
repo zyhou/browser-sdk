@@ -14,6 +14,7 @@ import {
   isExperimentalFeatureEnabled,
   ExperimentalFeature,
   isIE,
+  measurePerformance,
 } from '@datadog/browser-core'
 import type { FrustrationType } from '../../rawRumEvent.types'
 import { ActionType } from '../../rawRumEvent.types'
@@ -25,7 +26,7 @@ import { PAGE_ACTIVITY_VALIDATION_DELAY, waitPageActivityEnd } from '../waitPage
 import { getSelectorFromElement } from '../getSelectorFromElement'
 import type { ClickChain } from './clickChain'
 import { createClickChain } from './clickChain'
-import { getActionNameFromElement } from './getActionNameFromElement'
+import { getActionNameFromElement, getPrivateActionNameFromElement } from './getActionNameFromElement'
 import type { MouseEventOnElement, UserActivity } from './listenActionEvents'
 import { listenActionEvents } from './listenActionEvents'
 import { computeFrustration } from './computeFrustration'
@@ -40,9 +41,14 @@ export interface ClickAction {
   type: ActionType.CLICK
   id: string
   name: string
+  privateName?: string
+  performance?: {
+    selectorDuration?: Duration
+    nameDuration?: Duration
+    privateNameDuration?: Duration
+  }
   target?: {
     selector: string
-    selector_for_private_name?: string
     width: number
     height: number
   }
@@ -210,31 +216,41 @@ function startClickAction(
   })
 }
 
-type ClickActionBase = Pick<ClickAction, 'type' | 'name' | 'target' | 'position'>
+type ClickActionBase = Pick<ClickAction, 'type' | 'name' | 'privateName' | 'performance' | 'target' | 'position'>
 
 function computeClickActionBase(event: MouseEventOnElement, actionNameAttribute?: string): ClickActionBase {
   const rect = event.target.getBoundingClientRect()
+  const [selector, selectorDuration] = measurePerformance(() =>
+    getSelectorFromElement(event.target, actionNameAttribute)
+  )
+  const [name, nameDuration] = measurePerformance(() => getActionNameFromElement(event.target, actionNameAttribute))
+
+  let performance: ClickActionBase['performance']
+  let privateName: string | undefined
+  if (isExperimentalFeatureEnabled(ExperimentalFeature.SELECTOR_FOR_PRIVATE_ACTION_NAME) && !isIE()) {
+    let privateNameDuration: Duration | undefined
+    ;[privateName, privateNameDuration] = measurePerformance(() =>
+      getPrivateActionNameFromElement(event.target, actionNameAttribute)
+    )
+
+    performance = { selectorDuration, nameDuration, privateNameDuration }
+  }
+
   return {
     type: ActionType.CLICK,
     target: {
       width: Math.round(rect.width),
       height: Math.round(rect.height),
-      selector: getSelectorFromElement(event.target, actionNameAttribute),
-      selector_for_private_name:
-        isExperimentalFeatureEnabled(ExperimentalFeature.SELECTOR_FOR_PRIVATE_ACTION_NAME) && !isIE()
-          ? getSelectorFromElement(event.target, actionNameAttribute, {
-              stopRecurringWhenUnique: true,
-              targetMeaningfulElement: true,
-              onlyPrefixWithSemanticTag: true,
-            })
-          : undefined,
+      selector,
     },
     position: {
       // Use clientX and Y because for SVG element offsetX and Y are relatives to the <svg> element
       x: Math.round(event.clientX - rect.left),
       y: Math.round(event.clientY - rect.top),
     },
-    name: getActionNameFromElement(event.target, actionNameAttribute),
+    name,
+    privateName,
+    performance,
   }
 }
 

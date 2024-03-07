@@ -1,5 +1,6 @@
 import { cssEscape } from '@datadog/browser-core'
-import { DEFAULT_PROGRAMMATIC_ACTION_NAME_ATTRIBUTE } from './action/getActionNameFromElement'
+import { closestElement } from '../browser/htmlDomUtils'
+import { DEFAULT_PROGRAMMATIC_ACTION_NAME_ATTRIBUTE } from './action/actionNameConstant'
 
 /**
  * Stable attributes are attributes that are commonly used to identify parts of a UI (ex:
@@ -30,19 +31,19 @@ const MEANINGFUL_ELEMENTS_SELECTORS = [
     '[role=button]',
     '[role=link]',
     '[role=tab]',
+    '[role=slider]',
+    '[role=switch]',
+    '[role=scrollbar]',
     '[aria-label]',
     '[aria-labelledby]',
-    '[alt]',
-    '[name]',
     '[title]',
-    '[placeholder]',
     'select',
   ],
 ]
 
 export type SelectorGetter = (
   element: Element,
-  prefix: (element: Element) => string,
+  tagNameSelector: (element: Element) => string,
   actionNameAttribute: string | undefined
 ) => string | undefined
 
@@ -57,35 +58,35 @@ const UNIQUE_AMONG_CHILDREN_SELECTOR_GETTERS: SelectorGetter[] = [
 
 export function getSelectorFromElement(
   targetElement: Element,
-  actionNameAttribute: string | undefined,
+  actionNameAttribute?: string | undefined,
   { stopRecurringWhenUnique = false, targetMeaningfulElement = false, onlyPrefixWithSemanticTag = false } = {}
 ) {
   let targetElementSelector = ''
   let element: Element | null = targetElement
-  const prefix = onlyPrefixWithSemanticTag ? getSemanticTagName : getTagNameSelector
+  const tagNameSelector = onlyPrefixWithSemanticTag ? getSemanticTagName : getTagNameSelector
 
-  if (targetMeaningfulElement && targetElement.closest) {
-    const closestClickableElement = targetElement.closest(MEANINGFUL_ELEMENTS_SELECTORS.join(','))
-    if (closestClickableElement) {
-      element = closestClickableElement
+  if (targetMeaningfulElement) {
+    const closestMeaningfulElement = closestElement(targetElement, MEANINGFUL_ELEMENTS_SELECTORS.join(','))
+    if (closestMeaningfulElement) {
+      element = closestMeaningfulElement
     }
   }
 
   // Selectors to use if they target a single element on the whole document. Those selectors are
   // considered as "stable" and uniquely identify an element regardless of the page state. If we find
   // one, we should consider the selector "complete" and stop iterating over ancestors.
-  const GLOBALLY_UNIQUE_SELECTOR_GETTERS = [getStableAttributeSelector, getIDSelector]
+  const globallyUniqueSelectorGetters = [getStableAttributeSelector, getIDSelector]
   if (stopRecurringWhenUnique) {
-    GLOBALLY_UNIQUE_SELECTOR_GETTERS.push(getClassSelector, getTagNameSelector)
+    globallyUniqueSelectorGetters.push(getClassSelector, getTagNameSelector, getPositionSelector)
   }
 
   while (element && element.nodeName !== 'HTML') {
     const globallyUniqueSelector = findSelector(
       element,
-      GLOBALLY_UNIQUE_SELECTOR_GETTERS,
+      globallyUniqueSelectorGetters,
       isSelectorUniqueGlobally,
       actionNameAttribute,
-      prefix,
+      tagNameSelector,
       targetElementSelector
     )
     if (globallyUniqueSelector) {
@@ -97,7 +98,7 @@ export function getSelectorFromElement(
       UNIQUE_AMONG_CHILDREN_SELECTOR_GETTERS,
       isSelectorUniqueAmongSiblings,
       actionNameAttribute,
-      prefix,
+      tagNameSelector,
       targetElementSelector
     )
     targetElementSelector =
@@ -127,7 +128,7 @@ function getIDSelector(element: Element): string | undefined {
   }
 }
 
-function getClassSelector(element: Element, prefix: (element: Element) => string): string | undefined {
+function getClassSelector(element: Element, tagNameSelector: (element: Element) => string): string | undefined {
   if (element.tagName === 'BODY') {
     return
   }
@@ -138,7 +139,7 @@ function getClassSelector(element: Element, prefix: (element: Element) => string
         continue
       }
 
-      return `${prefix(element)}.${cssEscape(className)}`
+      return `${tagNameSelector(element)}.${cssEscape(className)}`
     }
   }
 }
@@ -153,7 +154,7 @@ function getSemanticTagName(element: Element) {
 
 function getStableAttributeSelector(
   element: Element,
-  prefix: (element: Element) => string,
+  tagNameSelector: (element: Element) => string,
   actionNameAttribute: string | undefined
 ): string | undefined {
   if (actionNameAttribute) {
@@ -172,7 +173,7 @@ function getStableAttributeSelector(
 
   function getAttributeSelector(attributeName: string) {
     if (element.hasAttribute(attributeName)) {
-      return `${prefix(element)}[${attributeName}="${cssEscape(element.getAttribute(attributeName)!)}"]`
+      return `${tagNameSelector(element)}[${attributeName}="${cssEscape(element.getAttribute(attributeName)!)}"]`
     }
   }
 }
@@ -196,11 +197,11 @@ function findSelector(
   selectorGetters: SelectorGetter[],
   predicate: (element: Element, selector: string) => boolean,
   actionNameAttribute: string | undefined,
-  prefix: (element: Element) => string,
+  tagNameSelector: (element: Element) => string,
   childSelector?: string
 ) {
   for (const selectorGetter of selectorGetters) {
-    const elementSelector = selectorGetter(element, prefix, actionNameAttribute)
+    const elementSelector = selectorGetter(element, tagNameSelector, actionNameAttribute)
     if (!elementSelector) {
       continue
     }

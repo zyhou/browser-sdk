@@ -1,4 +1,4 @@
-import { display, isIE, objectEntries } from '@datadog/browser-core'
+import { display, isIE, objectEntries, TraceContextInjection } from '@datadog/browser-core'
 import type { RumSessionManagerMock } from '../../../test'
 import { createRumSessionManagerMock } from '../../../test'
 import type { RumFetchResolveContext, RumFetchStartContext, RumXhrStartContext } from '../requestCollection'
@@ -205,6 +205,51 @@ describe('tracer', () => {
       expect(xhrStub.headers['traceparent']).toBeUndefined()
       expect(xhrStub.headers['x-datadog-trace-id']).toBeUndefined()
       expect(xhrStub.headers['X-B3-TraceId']).toBeUndefined()
+    })
+
+    it('should not add any headers when trace not sampled and config set to sampled only', () => {
+      const configurationWithInjectionParam = {
+        ...configuration,
+        traceSampleRate: 0,
+        traceContextInjection: TraceContextInjection.SAMPLED,
+      }
+
+      const tracer = startTracer(configurationWithInjectionParam, sessionManager)
+      const context = { ...ALLOWED_DOMAIN_CONTEXT }
+      tracer.traceXhr(context, xhrStub as unknown as XMLHttpRequest)
+
+      expect(xhrStub.headers['x-datadog-trace-id']).toBeUndefined()
+      expect(xhrStub.headers['x-datadog-sampling-priority']).toBeUndefined()
+    })
+
+    it('should add headers when trace sampled and config set to Sampled', () => {
+      const configurationWithInjectionParam = {
+        ...configuration,
+        traceSampleRate: 100,
+        traceContextInjection: TraceContextInjection.SAMPLED,
+      }
+
+      const tracer = startTracer(configurationWithInjectionParam, sessionManager)
+      const context = { ...ALLOWED_DOMAIN_CONTEXT }
+      tracer.traceXhr(context, xhrStub as unknown as XMLHttpRequest)
+
+      expect(xhrStub.headers['x-datadog-trace-id']).toBeDefined()
+      expect(xhrStub.headers['x-datadog-sampling-priority']).toBeDefined()
+    })
+
+    it('should add headers when trace not sampled and config set to all', () => {
+      const configurationWithInjectionParam = {
+        ...configuration,
+        traceSampleRate: 0,
+        traceContextInjection: TraceContextInjection.ALL,
+      }
+
+      const tracer = startTracer(configurationWithInjectionParam, sessionManager)
+      const context = { ...ALLOWED_DOMAIN_CONTEXT }
+      tracer.traceXhr(context, xhrStub as unknown as XMLHttpRequest)
+
+      expect(xhrStub.headers['x-datadog-trace-id']).toBeDefined()
+      expect(xhrStub.headers['x-datadog-sampling-priority']).toBeDefined()
     })
 
     it('should ignore wrong propagator types', () => {
@@ -507,7 +552,7 @@ describe('tracer', () => {
       )
     })
 
-    it('should not add any headers', () => {
+    it('should not add any headers with no propagatorTypes', () => {
       const configurationWithoutHeaders = validateAndBuildRumConfiguration({
         ...INIT_CONFIGURATION,
         allowedTracingUrls: [{ match: window.location.origin, propagatorTypes: [] }],
@@ -522,6 +567,54 @@ describe('tracer', () => {
       expect(context.init!.headers).not.toContain(jasmine.arrayContaining(['x-datadog-trace-id']))
       expect(context.init!.headers).not.toContain(jasmine.arrayContaining(['X-B3-TraceId']))
     })
+  })
+
+  it('should not init context when trace not sampled and config set to sampled only', () => {
+    const configurationWithoutHeaders = validateAndBuildRumConfiguration({
+      ...INIT_CONFIGURATION,
+      traceSampleRate: 0,
+      traceContextInjection: TraceContextInjection.SAMPLED,
+    })!
+
+    const tracer = startTracer(configurationWithoutHeaders, sessionManager)
+    const context: Partial<RumFetchStartContext> = { ...ALLOWED_DOMAIN_CONTEXT }
+    tracer.traceFetch(context)
+
+    expect(context.init).toBeUndefined()
+  })
+
+  it('should add headers when trace sampled and config set to sampled', () => {
+    const configurationWithoutHeaders = validateAndBuildRumConfiguration({
+      ...INIT_CONFIGURATION,
+      traceSampleRate: 100,
+      traceContextInjection: TraceContextInjection.SAMPLED,
+    })!
+
+    const tracer = startTracer(configurationWithoutHeaders, sessionManager)
+    const context: Partial<RumFetchStartContext> = { ...ALLOWED_DOMAIN_CONTEXT }
+    tracer.traceFetch(context)
+
+    expect(context.init!.headers).toContain(jasmine.arrayContaining(['x-datadog-origin']))
+    expect(context.init!.headers).toContain(jasmine.arrayContaining(['x-datadog-parent-id']))
+    expect(context.init!.headers).toContain(jasmine.arrayContaining(['x-datadog-trace-id']))
+    expect(context.init!.headers).toContain(jasmine.arrayContaining(['x-datadog-sampling-priority']))
+  })
+
+  it('should add headers when trace not sampled yet config set to all', () => {
+    const configurationWithoutHeaders = validateAndBuildRumConfiguration({
+      ...INIT_CONFIGURATION,
+      traceSampleRate: 0,
+      traceContextInjection: TraceContextInjection.ALL,
+    })!
+
+    const tracer = startTracer(configurationWithoutHeaders, sessionManager)
+    const context: Partial<RumFetchStartContext> = { ...ALLOWED_DOMAIN_CONTEXT }
+    tracer.traceFetch(context)
+
+    expect(context.init!.headers).toContain(jasmine.arrayContaining(['x-datadog-origin']))
+    expect(context.init!.headers).toContain(jasmine.arrayContaining(['x-datadog-parent-id']))
+    expect(context.init!.headers).toContain(jasmine.arrayContaining(['x-datadog-trace-id']))
+    expect(context.init!.headers).toContain(jasmine.arrayContaining(['x-datadog-sampling-priority']))
   })
 
   describe('clearTracingIfCancelled', () => {

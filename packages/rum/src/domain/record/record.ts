@@ -2,7 +2,7 @@ import { sendToExtension } from '@datadog/browser-core'
 import type { LifeCycle, RumConfiguration, ViewContexts } from '@datadog/browser-rum-core'
 import type { BrowserRecord } from '../../types'
 import * as replayStats from '../replayStats'
-import type { FlushableTracker, Tracker } from './observers'
+import type { FlushableTracker, Tracker } from './trackers'
 import {
   initRecordIds,
   trackFocus,
@@ -16,7 +16,7 @@ import {
   trackStyleSheet,
   trackViewEnd,
   trackViewportResize,
-} from './observers'
+} from './trackers'
 import { createElementsScrollPositions } from './elementsScrollPositions'
 import type { ShadowRootsController } from './shadowRootsController'
 import { initShadowRootsController } from './shadowRootsController'

@@ -1,6 +1,6 @@
 import type { RumConfiguration } from '@datadog/browser-rum-core'
-import type { InputCallback, MutationCallBack } from './observers'
-import { trackInput, trackMutation } from './observers'
+import type { InputCallback, MutationCallBack } from './trackers'
+import { trackInput, trackMutation } from './trackers'
 
 interface ShadowRootController {
   stop: () => void

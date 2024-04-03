@@ -43,9 +43,9 @@ import { createPreStartStrategy } from './preStartRum'
 import type { StartRum, StartRumResult } from './startRum'
 
 export type RumPublicApi = ReturnType<typeof makeRumPublicApi>
-
+export interface StartStrategyOptions { forceStart: boolean }
 export interface RecorderApi {
-  start: () => void
+  start: (options?: StartStrategyOptions) => void
   stop: () => void
   onRumStart: (
     lifeCycle: LifeCycle,
@@ -288,7 +288,7 @@ export function makeRumPublicApi(startRumImpl: StartRum, recorderApi: RecorderAp
     }),
 
     getSessionReplayLink: monitor(() => recorderApi.getSessionReplayLink()),
-    startSessionReplayRecording: monitor(() => recorderApi.start()),
+    startSessionReplayRecording: monitor((options?: StartStrategyOptions) => recorderApi.start(options)),
     stopSessionReplayRecording: monitor(() => recorderApi.stop()),
   })
 

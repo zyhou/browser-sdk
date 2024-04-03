@@ -43,7 +43,9 @@ import { createPreStartStrategy } from './preStartRum'
 import type { StartRum, StartRumResult } from './startRum'
 
 export type RumPublicApi = ReturnType<typeof makeRumPublicApi>
-export interface StartStrategyOptions { forceStart: boolean }
+export interface StartStrategyOptions {
+  forceStart: boolean
+}
 export interface RecorderApi {
   start: (options?: StartStrategyOptions) => void
   stop: () => void

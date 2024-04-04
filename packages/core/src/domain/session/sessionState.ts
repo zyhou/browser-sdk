@@ -1,4 +1,3 @@
-import { isEmptyObject } from '../../tools/utils/objectUtils'
 import { objectEntries } from '../../tools/utils/polyfills'
 import { dateNow } from '../../tools/utils/timeUtils'
 import { SESSION_EXPIRATION_DELAY } from './sessionConstants'
@@ -15,8 +14,22 @@ export interface SessionState {
   [key: string]: string | undefined
 }
 
+export function getInitialSessionState(): SessionState {
+  return {
+    id: 'null',
+  }
+}
+
+export function isSessionInitialized(session: SessionState) {
+  return session.id !== undefined
+}
+
 export function isSessionInExpiredState(session: SessionState) {
-  return isEmptyObject(session)
+  // an expired session is `{id = null}` or `{id = null, lock = whatever}`
+  return (
+    (Object.keys(session).length === 1 && session.id === 'null') ||
+    (Object.keys(session).length === 2 && session.id === 'null' && session.lock !== undefined)
+  )
 }
 
 export function expandSessionState(session: SessionState) {
@@ -25,7 +38,7 @@ export function expandSessionState(session: SessionState) {
 
 export function toSessionString(session: SessionState) {
   return objectEntries(session)
-    .map(([key, value]) => `${key}=${value as string}`)
+    .map(([key, value]) => `${key}=${value}`)
     .join(SESSION_ENTRY_SEPARATOR)
 }
 

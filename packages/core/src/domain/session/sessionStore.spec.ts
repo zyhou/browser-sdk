@@ -16,10 +16,14 @@ const PRODUCT_KEY = 'product'
 const FIRST_ID = 'first'
 const SECOND_ID = 'second'
 
-function setSessionInStore(trackingType: FakeTrackingType = FakeTrackingType.TRACKED, id?: string, expire?: number) {
+function setSessionInStore(
+  trackingType: FakeTrackingType = FakeTrackingType.TRACKED,
+  id: string = 'null',
+  expire?: number
+) {
   setCookie(
     SESSION_STORE_KEY,
-    `${id ? `id=${id}&` : ''}${PRODUCT_KEY}=${trackingType}&created=${Date.now()}&expire=${
+    `id=${id}&${PRODUCT_KEY}=${trackingType}&created=${Date.now()}&expire=${
       expire || Date.now() + SESSION_EXPIRATION_DELAY
     }`,
     DURATION
@@ -32,7 +36,7 @@ function expectTrackedSessionToBeInStore(id?: string) {
 }
 
 function expectNotTrackedSessionToBeInStore() {
-  expect(getCookie(SESSION_STORE_KEY)).not.toContain('id=')
+  expect(getCookie(SESSION_STORE_KEY)).toContain('id=null')
   expect(getCookie(SESSION_STORE_KEY)).toContain(`${PRODUCT_KEY}=${FakeTrackingType.NOT_TRACKED}`)
 }
 
@@ -41,7 +45,7 @@ function getStoreExpiration() {
 }
 
 function resetSessionInStore() {
-  setCookie(SESSION_STORE_KEY, '', DURATION)
+  setCookie(SESSION_STORE_KEY, 'id=null', DURATION)
 }
 
 describe('session store', () => {
@@ -147,7 +151,7 @@ describe('session store', () => {
 
           sessionStoreManager.expandOrRenewSession()
 
-          expect(sessionStoreManager.getSession().id).toBeUndefined()
+          expect(sessionStoreManager.getSession().id).toBe('null')
           expectNotTrackedSessionToBeInStore()
           expect(expireSpy).not.toHaveBeenCalled()
           expect(renewSpy).not.toHaveBeenCalled()
@@ -195,7 +199,7 @@ describe('session store', () => {
 
           sessionStoreManager.expandOrRenewSession()
 
-          expect(sessionStoreManager.getSession().id).toBeUndefined()
+          expect(sessionStoreManager.getSession().id).toBe('null')
           expect(sessionStoreManager.getSession()[PRODUCT_KEY]).toBeDefined()
           expectNotTrackedSessionToBeInStore()
           expect(expireSpy).toHaveBeenCalled()
@@ -213,7 +217,7 @@ describe('session store', () => {
 
           sessionStoreManager.expandOrRenewSession()
 
-          expect(sessionStoreManager.getSession().id).toBeUndefined()
+          expect(sessionStoreManager.getSession().id).toBe('null')
           expect(sessionStoreManager.getSession()[PRODUCT_KEY]).toBeDefined()
           expectNotTrackedSessionToBeInStore()
           expect(expireSpy).toHaveBeenCalled()
@@ -261,11 +265,11 @@ describe('session store', () => {
             isTracked: rawTrackingType === FakeTrackingType.TRACKED,
             trackingType: rawTrackingType as FakeTrackingType,
           }))
-          setSessionInStore(FakeTrackingType.NOT_TRACKED, '')
+          setSessionInStore(FakeTrackingType.NOT_TRACKED)
 
           sessionStoreManager.expandOrRenewSession()
 
-          expect(sessionStoreManager.getSession().id).toBeUndefined()
+          expect(sessionStoreManager.getSession().id).toBe('null')
           expectNotTrackedSessionToBeInStore()
           expect(expireSpy).toHaveBeenCalled()
           expect(renewSpy).not.toHaveBeenCalled()
@@ -284,7 +288,7 @@ describe('session store', () => {
 
         clock.tick(STORAGE_POLL_DELAY)
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().id).toBe('null')
         expect(renewSpy).not.toHaveBeenCalled()
       })
     })
@@ -295,7 +299,7 @@ describe('session store', () => {
 
         sessionStoreManager.expandSession()
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().id).toBe('null')
         expect(expireSpy).not.toHaveBeenCalled()
       })
 
@@ -305,7 +309,7 @@ describe('session store', () => {
 
         sessionStoreManager.expandSession()
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().id).toBe('null')
         expect(expireSpy).not.toHaveBeenCalled()
       })
 
@@ -316,7 +320,7 @@ describe('session store', () => {
 
         sessionStoreManager.expandSession()
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().id).toBe('null')
         expect(expireSpy).toHaveBeenCalled()
       })
 
@@ -339,7 +343,7 @@ describe('session store', () => {
 
         sessionStoreManager.expandSession()
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().id).toBe('null')
         expectTrackedSessionToBeInStore(SECOND_ID)
         expect(expireSpy).toHaveBeenCalled()
       })
@@ -351,7 +355,7 @@ describe('session store', () => {
 
         clock.tick(STORAGE_POLL_DELAY)
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().id).toBe('null')
         expect(expireSpy).not.toHaveBeenCalled()
       })
 
@@ -361,7 +365,7 @@ describe('session store', () => {
 
         clock.tick(STORAGE_POLL_DELAY)
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().id).toBe('null')
         expect(expireSpy).not.toHaveBeenCalled()
       })
 
@@ -372,7 +376,7 @@ describe('session store', () => {
 
         clock.tick(STORAGE_POLL_DELAY)
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().id).toBe('null')
         expect(expireSpy).toHaveBeenCalled()
       })
 
@@ -395,7 +399,7 @@ describe('session store', () => {
 
         clock.tick(STORAGE_POLL_DELAY)
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().id).toBe('null')
         expect(expireSpy).toHaveBeenCalled()
       })
 
@@ -406,7 +410,7 @@ describe('session store', () => {
 
         clock.tick(STORAGE_POLL_DELAY)
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().id).toBe('null')
         expect(expireSpy).toHaveBeenCalled()
       })
     })

@@ -16,6 +16,13 @@ describe('session in cookie strategy', () => {
     deleteCookie(SESSION_STORE_KEY)
   })
 
+  it('should initialize a new cookie', () => {
+    const session = cookieStorageStrategy.retrieveSession()
+
+    expect(session).toEqual({ id: 'null' })
+    expect(getCookie(SESSION_STORE_KEY)).toBe('id=null')
+  })
+
   it('should persist a session in a cookie', () => {
     cookieStorageStrategy.persistSession(sessionState)
     const session = cookieStorageStrategy.retrieveSession()
@@ -23,12 +30,12 @@ describe('session in cookie strategy', () => {
     expect(getCookie(SESSION_STORE_KEY)).toBe('id=123&created=0')
   })
 
-  it('should delete the cookie holding the session', () => {
+  it('should clear the cookie holding the session', () => {
     cookieStorageStrategy.persistSession(sessionState)
     cookieStorageStrategy.clearSession()
     const session = cookieStorageStrategy.retrieveSession()
-    expect(session).toEqual({})
-    expect(getCookie(SESSION_STORE_KEY)).toBeUndefined()
+    expect(session).toEqual({ id: 'null' })
+    expect(getCookie(SESSION_STORE_KEY)).toBe('id=null')
   })
 
   it('should return an empty object if session string is invalid', () => {

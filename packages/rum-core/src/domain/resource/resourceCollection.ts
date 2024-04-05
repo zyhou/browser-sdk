@@ -17,8 +17,8 @@ import { RumPerformanceEntryType } from '../../browser/performanceCollection'
 import type { RumXhrResourceEventDomainContext, RumFetchResourceEventDomainContext } from '../../domainContext.types'
 import type { RawRumResourceEvent } from '../../rawRumEvent.types'
 import { RumEventType } from '../../rawRumEvent.types'
-import type { LifeCycle, RawRumEventCollectedData } from '../lifeCycle'
 import { LifeCycleEventType } from '../lifeCycle'
+import type { RawRumEventCollectedData, LifeCycle } from '../lifeCycle'
 import type { RequestCompleteEvent } from '../requestCollection'
 import type { RumSessionManager } from '../rumSessionManager'
 import type { PageStateHistory } from '../contexts/pageStateHistory'
@@ -30,6 +30,7 @@ import {
   computeResourceKind,
   computeSize,
   isRequestKind,
+  findDataUrlAndTruncate,
 } from './resourceUtils'
 
 export function startResourceCollection(
@@ -91,7 +92,7 @@ function processRequest(
         duration,
         method: request.method,
         status_code: request.status,
-        url: request.url,
+        url: findDataUrlAndTruncate(request.url) ?? request.url,
       },
       type: RumEventType.RESOURCE as const,
       _dd: {

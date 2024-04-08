@@ -5,6 +5,7 @@ import type { SessionStore } from './sessionStore'
 import { STORAGE_POLL_DELAY, startSessionStore, selectSessionStoreStrategyType } from './sessionStore'
 import { SESSION_EXPIRATION_DELAY, SESSION_TIME_OUT_DELAY } from './sessionConstants'
 import { SESSION_STORE_KEY } from './storeStrategies/sessionStoreStrategy'
+import { SessionExpiredReason } from './sessionState'
 
 const enum FakeTrackingType {
   TRACKED = 'tracked',
@@ -19,7 +20,7 @@ const SECOND_ID = 'second'
 function setSessionInStore(trackingType: FakeTrackingType = FakeTrackingType.TRACKED, id?: string, expire?: number) {
   setCookie(
     SESSION_STORE_KEY,
-    `${id ? `id=${id}&` : ''}${PRODUCT_KEY}=${trackingType}&created=${Date.now()}&expire=${
+    `${id ? `id=${id}` : 'expired=0'}&${PRODUCT_KEY}=${trackingType}&created=${Date.now()}&expire=${
       expire || Date.now() + SESSION_EXPIRATION_DELAY
     }`,
     DURATION
@@ -32,7 +33,7 @@ function expectTrackedSessionToBeInStore(id?: string) {
 }
 
 function expectNotTrackedSessionToBeInStore() {
-  expect(getCookie(SESSION_STORE_KEY)).not.toContain('id=')
+  expect(getCookie(SESSION_STORE_KEY)).toContain('expired=0')
   expect(getCookie(SESSION_STORE_KEY)).toContain(`${PRODUCT_KEY}=${FakeTrackingType.NOT_TRACKED}`)
 }
 
@@ -41,7 +42,7 @@ function getStoreExpiration() {
 }
 
 function resetSessionInStore() {
-  setCookie(SESSION_STORE_KEY, '', DURATION)
+  setCookie(SESSION_STORE_KEY, 'expired=0', DURATION)
 }
 
 describe('session store', () => {
@@ -147,7 +148,7 @@ describe('session store', () => {
 
           sessionStoreManager.expandOrRenewSession()
 
-          expect(sessionStoreManager.getSession().id).toBeUndefined()
+          expect(sessionStoreManager.getSession().expired).toBe(SessionExpiredReason.UNKNOWN)
           expectNotTrackedSessionToBeInStore()
           expect(expireSpy).not.toHaveBeenCalled()
           expect(renewSpy).not.toHaveBeenCalled()
@@ -195,7 +196,7 @@ describe('session store', () => {
 
           sessionStoreManager.expandOrRenewSession()
 
-          expect(sessionStoreManager.getSession().id).toBeUndefined()
+          expect(sessionStoreManager.getSession().expired).toBe(SessionExpiredReason.UNKNOWN)
           expect(sessionStoreManager.getSession()[PRODUCT_KEY]).toBeDefined()
           expectNotTrackedSessionToBeInStore()
           expect(expireSpy).toHaveBeenCalled()
@@ -213,7 +214,7 @@ describe('session store', () => {
 
           sessionStoreManager.expandOrRenewSession()
 
-          expect(sessionStoreManager.getSession().id).toBeUndefined()
+          expect(sessionStoreManager.getSession().expired).toBe(SessionExpiredReason.UNKNOWN)
           expect(sessionStoreManager.getSession()[PRODUCT_KEY]).toBeDefined()
           expectNotTrackedSessionToBeInStore()
           expect(expireSpy).toHaveBeenCalled()
@@ -261,11 +262,11 @@ describe('session store', () => {
             isTracked: rawTrackingType === FakeTrackingType.TRACKED,
             trackingType: rawTrackingType as FakeTrackingType,
           }))
-          setSessionInStore(FakeTrackingType.NOT_TRACKED, '')
+          setSessionInStore(FakeTrackingType.NOT_TRACKED)
 
           sessionStoreManager.expandOrRenewSession()
 
-          expect(sessionStoreManager.getSession().id).toBeUndefined()
+          expect(sessionStoreManager.getSession().expired).toBe(SessionExpiredReason.UNKNOWN)
           expectNotTrackedSessionToBeInStore()
           expect(expireSpy).toHaveBeenCalled()
           expect(renewSpy).not.toHaveBeenCalled()
@@ -284,7 +285,7 @@ describe('session store', () => {
 
         clock.tick(STORAGE_POLL_DELAY)
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().expired).toBe(SessionExpiredReason.UNKNOWN)
         expect(renewSpy).not.toHaveBeenCalled()
       })
     })
@@ -295,7 +296,7 @@ describe('session store', () => {
 
         sessionStoreManager.expandSession()
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().expired).toBe(SessionExpiredReason.UNKNOWN)
         expect(expireSpy).not.toHaveBeenCalled()
       })
 
@@ -305,7 +306,7 @@ describe('session store', () => {
 
         sessionStoreManager.expandSession()
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().expired).toBe(SessionExpiredReason.UNKNOWN)
         expect(expireSpy).not.toHaveBeenCalled()
       })
 
@@ -316,7 +317,7 @@ describe('session store', () => {
 
         sessionStoreManager.expandSession()
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().expired).toBe(SessionExpiredReason.UNKNOWN)
         expect(expireSpy).toHaveBeenCalled()
       })
 
@@ -339,7 +340,7 @@ describe('session store', () => {
 
         sessionStoreManager.expandSession()
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().expired).toBe(SessionExpiredReason.UNKNOWN)
         expectTrackedSessionToBeInStore(SECOND_ID)
         expect(expireSpy).toHaveBeenCalled()
       })
@@ -351,7 +352,7 @@ describe('session store', () => {
 
         clock.tick(STORAGE_POLL_DELAY)
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().expired).toBe(SessionExpiredReason.UNKNOWN)
         expect(expireSpy).not.toHaveBeenCalled()
       })
 
@@ -361,7 +362,7 @@ describe('session store', () => {
 
         clock.tick(STORAGE_POLL_DELAY)
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().expired).toBe(SessionExpiredReason.UNKNOWN)
         expect(expireSpy).not.toHaveBeenCalled()
       })
 
@@ -372,7 +373,7 @@ describe('session store', () => {
 
         clock.tick(STORAGE_POLL_DELAY)
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().expired).toBe(SessionExpiredReason.UNKNOWN)
         expect(expireSpy).toHaveBeenCalled()
       })
 
@@ -395,7 +396,7 @@ describe('session store', () => {
 
         clock.tick(STORAGE_POLL_DELAY)
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().expired).toBe(SessionExpiredReason.UNKNOWN)
         expect(expireSpy).toHaveBeenCalled()
       })
 
@@ -406,8 +407,29 @@ describe('session store', () => {
 
         clock.tick(STORAGE_POLL_DELAY)
 
-        expect(sessionStoreManager.getSession().id).toBeUndefined()
+        expect(sessionStoreManager.getSession().expired).toBe(SessionExpiredReason.UNKNOWN)
         expect(expireSpy).toHaveBeenCalled()
+      })
+    })
+
+    describe('reinitialize session', () => {
+      it('when session not in store, should do reinitialize the store', () => {
+        setSessionInStore()
+        setupSessionStore()
+
+        sessionStoreManager.reinitializeSession()
+
+        expect(sessionStoreManager.getSession().expired).toBe(SessionExpiredReason.UNKNOWN)
+      })
+
+      it('when session in store, should do nothing', () => {
+        setSessionInStore(FakeTrackingType.TRACKED, FIRST_ID)
+        setupSessionStore()
+
+        sessionStoreManager.reinitializeSession()
+
+        expect(sessionStoreManager.getSession().id).toBe(FIRST_ID)
+        expect(sessionStoreManager.getSession().expired).toBeUndefined()
       })
     })
   })

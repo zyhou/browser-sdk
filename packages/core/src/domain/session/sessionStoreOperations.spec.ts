@@ -4,7 +4,7 @@ import type { CookieOptions } from '../../browser/cookie'
 import { initCookieStrategy } from './storeStrategies/sessionInCookie'
 import { initLocalStorageStrategy } from './storeStrategies/sessionInLocalStorage'
 import type { SessionState } from './sessionState'
-import { expandSessionState, toSessionString } from './sessionState'
+import { SessionExpiredReason, expandSessionState, toSessionString } from './sessionState'
 import { processSessionStoreOperations, LOCK_MAX_TRIES, LOCK_RETRY_DELAY } from './sessionStoreOperations'
 import { SESSION_STORE_KEY } from './storeStrategies/sessionStoreStrategy'
 
@@ -14,19 +14,20 @@ const cookieOptions: CookieOptions = {}
   [
     {
       title: 'Cookie Storage',
-      sessionStoreStrategy: initCookieStrategy(cookieOptions),
+      createSessionStoreStrategy: () => initCookieStrategy(cookieOptions),
       stubStorageProvider: stubCookieProvider,
       storageKey: SESSION_STORE_KEY,
     },
     {
       title: 'Local Storage',
-      sessionStoreStrategy: initLocalStorageStrategy(),
+      createSessionStoreStrategy: () => initLocalStorageStrategy(),
       stubStorageProvider: stubLocalStorageProvider,
       storageKey: SESSION_STORE_KEY,
     },
   ] as const
-).forEach(({ title, sessionStoreStrategy, stubStorageProvider, storageKey }) => {
+).forEach(({ title, createSessionStoreStrategy, stubStorageProvider, storageKey }) => {
   describe(`process operations mechanism with ${title}`, () => {
+    const sessionStoreStrategy = createSessionStoreStrategy()
     let initialSession: SessionState
     let otherSession: SessionState
     let processSpy: jasmine.Spy<jasmine.Func>
@@ -59,14 +60,14 @@ const cookieOptions: CookieOptions = {}
         expect(afterSpy).toHaveBeenCalledWith(expectedSession)
       })
 
-      it('should clear session when process returns an empty value', () => {
+      it('should clear session when process returns an expired session', () => {
         sessionStoreStrategy.persistSession(initialSession)
-        processSpy.and.returnValue({})
+        processSpy.and.returnValue({ expired: SessionExpiredReason.UNKNOWN })
 
         processSessionStoreOperations({ process: processSpy, after: afterSpy }, sessionStoreStrategy)
 
         expect(processSpy).toHaveBeenCalledWith(initialSession)
-        const expectedSession = {}
+        const expectedSession = { expired: SessionExpiredReason.UNKNOWN }
         expect(sessionStoreStrategy.retrieveSession()).toEqual(expectedSession)
         expect(afterSpy).toHaveBeenCalledWith(expectedSession)
       })
@@ -112,14 +113,15 @@ const cookieOptions: CookieOptions = {}
         expect(afterSpy).toHaveBeenCalledWith(expectedSession)
       })
 
-      it('should clear session when process returns an empty value', () => {
+      it('should clear session when process returns an expired session', () => {
         sessionStoreStrategy.persistSession(initialSession)
-        processSpy.and.returnValue({})
+        processSpy.and.returnValue({ expired: SessionExpiredReason.UNKNOWN })
 
         processSessionStoreOperations({ process: processSpy, after: afterSpy }, sessionStoreStrategy)
 
         expect(processSpy).toHaveBeenCalledWith({ ...initialSession, lock: jasmine.any(String) })
-        const expectedSession = {}
+
+        const expectedSession = { expired: SessionExpiredReason.UNKNOWN }
         expect(sessionStoreStrategy.retrieveSession()).toEqual(expectedSession)
         expect(afterSpy).toHaveBeenCalledWith(expectedSession)
       })

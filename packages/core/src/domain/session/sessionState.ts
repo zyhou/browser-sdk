@@ -1,4 +1,3 @@
-import { isEmptyObject } from '../../tools/utils/objectUtils'
 import { objectEntries } from '../../tools/utils/polyfills'
 import { dateNow } from '../../tools/utils/timeUtils'
 import { SESSION_EXPIRATION_DELAY } from './sessionConstants'
@@ -6,17 +5,36 @@ import { SESSION_EXPIRATION_DELAY } from './sessionConstants'
 const SESSION_ENTRY_REGEXP = /^([a-z]+)=([a-z0-9-]+)$/
 const SESSION_ENTRY_SEPARATOR = '&'
 
+export const enum SessionExpiredReason {
+  UNKNOWN = '0',
+}
+
 export interface SessionState {
   id?: string
   created?: string
   expire?: string
   lock?: string
+  expired?: SessionExpiredReason
 
   [key: string]: string | undefined
 }
 
+export function getInitialSessionState(): SessionState {
+  return {
+    expired: SessionExpiredReason.UNKNOWN,
+  }
+}
+
+export function isSessionInitialized(session: SessionState) {
+  return session.id !== undefined || session.expired !== undefined
+}
+
 export function isSessionInExpiredState(session: SessionState) {
-  return isEmptyObject(session)
+  // // an expired session is `{expired = '0'}` or `{expired = '0', lock = whatever}`
+  return (
+    (Object.keys(session).length === 1 && session.expired !== undefined) ||
+    (Object.keys(session).length === 2 && session.expired !== undefined && session.lock !== undefined)
+  )
 }
 
 export function expandSessionState(session: SessionState) {
@@ -25,7 +43,7 @@ export function expandSessionState(session: SessionState) {
 
 export function toSessionString(session: SessionState) {
   return objectEntries(session)
-    .map(([key, value]) => `${key}=${value as string}`)
+    .map(([key, value]) => `${key}=${value}`)
     .join(SESSION_ENTRY_SEPARATOR)
 }
 

@@ -7,6 +7,7 @@ import type { InitConfiguration } from '../configuration'
 import { SESSION_TIME_OUT_DELAY } from './sessionConstants'
 import { selectCookieStrategy, initCookieStrategy } from './storeStrategies/sessionInCookie'
 import type { SessionStoreStrategyType } from './storeStrategies/sessionStoreStrategy'
+import { getInitialSessionState, isSessionInitialized } from './sessionState'
 import type { SessionState } from './sessionState'
 import { initLocalStorageStrategy, selectLocalStorageStrategy } from './storeStrategies/sessionInLocalStorage'
 import { processSessionStoreOperations } from './sessionStoreOperations'
@@ -15,6 +16,7 @@ export interface SessionStore {
   expandOrRenewSession: () => void
   expandSession: () => void
   getSession: () => SessionState
+  reinitializeSession: () => void
   renewObservable: Observable<void>
   expireObservable: Observable<void>
   expire: () => void
@@ -102,7 +104,8 @@ export function startSessionStore<TrackingType extends string>(
   function watchSession() {
     processSessionStoreOperations(
       {
-        process: (sessionState) => (!isActiveSession(sessionState) ? {} : undefined),
+        process: (sessionState) =>
+          isSessionInitialized(sessionState) && !isActiveSession(sessionState) ? getInitialSessionState() : undefined,
         after: synchronizeSession,
       },
       sessionStoreStrategy
@@ -110,9 +113,15 @@ export function startSessionStore<TrackingType extends string>(
   }
 
   function synchronizeSession(sessionState: SessionState) {
-    if (!isActiveSession(sessionState)) {
-      sessionState = {}
+    if (!isSessionInitialized(sessionState)) {
+      expireSessionInCache()
+      return sessionState
     }
+
+    if (!isActiveSession(sessionState)) {
+      sessionState = getInitialSessionState()
+    }
+
     if (hasSessionInCache()) {
       if (isSessionInCacheOutdated(sessionState)) {
         expireSessionInCache()
@@ -123,13 +132,33 @@ export function startSessionStore<TrackingType extends string>(
     return sessionState
   }
 
+  function reinitializeSession() {
+    processSessionStoreOperations(
+      {
+        process: (sessionState) => {
+          if (!isSessionInitialized(sessionState)) {
+            return getInitialSessionState()
+          }
+        },
+        after: synchronizeSession,
+      },
+      sessionStoreStrategy
+    )
+  }
+
   function expandOrRenewSessionState(sessionState: SessionState) {
+    if (!isSessionInitialized(sessionState)) {
+      return false
+    }
+
     const { trackingType, isTracked } = computeSessionState(sessionState[productKey])
     sessionState[productKey] = trackingType
     if (isTracked && !sessionState.id) {
       sessionState.id = generateUUID()
       sessionState.created = String(dateNow())
+      delete sessionState.expired
     }
+
     return isTracked
   }
 
@@ -142,7 +171,8 @@ export function startSessionStore<TrackingType extends string>(
   }
 
   function expireSessionInCache() {
-    sessionCache = {}
+    sessionCache = getInitialSessionState()
+
     expireObservable.notify()
   }
 
@@ -156,7 +186,7 @@ export function startSessionStore<TrackingType extends string>(
     if (isActiveSession(session)) {
       return session
     }
-    return {}
+    return getInitialSessionState()
   }
 
   function isActiveSession(sessionState: SessionState) {
@@ -174,10 +204,11 @@ export function startSessionStore<TrackingType extends string>(
     getSession: () => sessionCache,
     renewObservable,
     expireObservable,
+    reinitializeSession,
     expire: () => {
       cancelExpandOrRenewSession()
       clearSession()
-      synchronizeSession({})
+      synchronizeSession(getInitialSessionState())
     },
     stop: () => {
       clearInterval(watchSessionTimeoutId)

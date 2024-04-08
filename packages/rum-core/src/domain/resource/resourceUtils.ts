@@ -193,3 +193,18 @@ export function computeSize(entry: RumPerformanceResourceTiming) {
 export function isAllowedRequestUrl(configuration: RumConfiguration, url: string) {
   return url && !configuration.isIntakeUrl(url)
 }
+
+const DATA_URL_REGEX = /data:(.+)?(;base64)?,/g
+export const MAX_ATTRIBUTE_VALUE_CHAR_LENGTH = 24_000
+
+export function isDataUrlTooLong(url: string): boolean {
+  if (url.length <= MAX_ATTRIBUTE_VALUE_CHAR_LENGTH) {
+    return false
+  }
+  const match = url.match(DATA_URL_REGEX)
+  return !!match
+}
+
+export function sanitizeDataUrl(url: string): string {
+  return url.match(DATA_URL_REGEX)![0]
+}

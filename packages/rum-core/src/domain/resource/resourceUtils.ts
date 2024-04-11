@@ -197,14 +197,17 @@ export function isAllowedRequestUrl(configuration: RumConfiguration, url: string
 const DATA_URL_REGEX = /data:(.+)?(;base64)?,/g
 export const MAX_ATTRIBUTE_VALUE_CHAR_LENGTH = 24_000
 
-export function isDataUrlTooLong(url: string): boolean {
+export function isLongDataUrl(url: string): boolean {
   if (url.length <= MAX_ATTRIBUTE_VALUE_CHAR_LENGTH) {
     return false
+  } else if (url.substring(0, 5) === 'data:') {
+    // Avoid String.match RangeError: Maximum call stack size exceeded
+    url = url.substring(0, MAX_ATTRIBUTE_VALUE_CHAR_LENGTH)
+    return true
   }
-  const match = url.match(DATA_URL_REGEX)
-  return !!match
+  return false
 }
 
 export function sanitizeDataUrl(url: string): string {
-  return url.match(DATA_URL_REGEX)![0]
+  return `${url.match(DATA_URL_REGEX)![0]}[...]`
 }

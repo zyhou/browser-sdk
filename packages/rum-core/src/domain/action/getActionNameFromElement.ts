@@ -6,21 +6,37 @@ import { getParentElement } from '../../browser/polyfills'
  * It can also be retrieved from a user defined attribute.
  */
 export const DEFAULT_PROGRAMMATIC_ACTION_NAME_ATTRIBUTE = 'data-dd-action-name'
-
-export function getActionNameFromElement(element: Element, userProgrammaticAttribute?: string): string {
+export const ACTION_NAME_PLACEHOLDER = 'Masked Element'
+export function getActionNameFromElement(
+  element: Element,
+  userProgrammaticAttribute?: string,
+  privacyEnabledForActionName?: boolean
+): { name: string; masked?: boolean } {
+  const definedActionNameFromElement =
+    getActionNameFromElementProgrammatically(element, DEFAULT_PROGRAMMATIC_ACTION_NAME_ATTRIBUTE) ||
+    (userProgrammaticAttribute && getActionNameFromElementProgrammatically(element, userProgrammaticAttribute))
+  // Only get the defined action name if
+  // * privacy is enabled for action name
+  // * and privacy is enabled for the Node or globally
+  if (privacyEnabledForActionName) {
+    return {
+      name: definedActionNameFromElement || ACTION_NAME_PLACEHOLDER,
+      masked: definedActionNameFromElement ? false : true,
+    }
+  }
   // Proceed to get the action name in two steps:
   // * first, get the name programmatically, explicitly defined by the user.
   // * then, use strategies that are known to return good results. Those strategies will be used on
   //   the element and a few parents, but it's likely that they won't succeed at all.
   // * if no name is found this way, use strategies returning less accurate names as a fallback.
   //   Those are much likely to succeed.
-  return (
-    getActionNameFromElementProgrammatically(element, DEFAULT_PROGRAMMATIC_ACTION_NAME_ATTRIBUTE) ||
-    (userProgrammaticAttribute && getActionNameFromElementProgrammatically(element, userProgrammaticAttribute)) ||
-    getActionNameFromElementForStrategies(element, userProgrammaticAttribute, priorityStrategies) ||
-    getActionNameFromElementForStrategies(element, userProgrammaticAttribute, fallbackStrategies) ||
-    ''
-  )
+  return {
+    name:
+      definedActionNameFromElement ||
+      getActionNameFromElementForStrategies(element, userProgrammaticAttribute, priorityStrategies) ||
+      getActionNameFromElementForStrategies(element, userProgrammaticAttribute, fallbackStrategies) ||
+      '',
+  }
 }
 
 function getActionNameFromElementProgrammatically(targetElement: Element, programmaticAttribute: string) {

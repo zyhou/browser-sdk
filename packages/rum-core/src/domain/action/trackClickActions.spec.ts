@@ -1,5 +1,5 @@
 import type { Context, Duration } from '@datadog/browser-core'
-import { addDuration, clocksNow, timeStampNow, relativeNow } from '@datadog/browser-core'
+import { addDuration, clocksNow, timeStampNow, relativeNow, DefaultPrivacyLevel } from '@datadog/browser-core'
 import { createNewEvent } from '@datadog/browser-core/test'
 import type { TestSetupBuilder } from '../../../test'
 import { setup, createFakeClick } from '../../../test'
@@ -230,6 +230,50 @@ describe('trackClickActions', () => {
     clock.tick(EXPIRE_DELAY)
 
     expect(events.length).toBe(1)
+  })
+
+  describe('with enablePrivacyForActionName false', () => {
+    it('extracts action name when default privacy level is mask', () => {
+      setupBuilder.withConfiguration({
+        defaultPrivacyLevel: DefaultPrivacyLevel.MASK,
+        enablePrivacyForActionName: false,
+      })
+      const { clock } = setupBuilder.build()
+      emulateClick({ activity: {} })
+      expect(findActionId()).not.toBeUndefined()
+      clock.tick(EXPIRE_DELAY)
+
+      expect(events.length).toBe(1)
+      expect(events[0].name).toBe('Click me')
+    })
+  })
+
+  describe('with enablePrivacyForActionName true', () => {
+    it('does not track click actions when html override set hidden', () => {
+      setupBuilder.withConfiguration({
+        enablePrivacyForActionName: true,
+      })
+      button.setAttribute('data-dd-privacy', 'hidden')
+
+      const { clock } = setupBuilder.build()
+      emulateClick({ activity: {} })
+      clock.tick(EXPIRE_DELAY)
+
+      expect(events.length).toBe(0)
+    })
+    it('get placeholder when defaultPrivacyLevel is mask without programmatically declared action name', () => {
+      setupBuilder.withConfiguration({
+        defaultPrivacyLevel: DefaultPrivacyLevel.MASK,
+        enablePrivacyForActionName: true,
+      })
+      const { clock } = setupBuilder.build()
+      emulateClick({ activity: {} })
+      expect(findActionId()).not.toBeUndefined()
+      clock.tick(EXPIRE_DELAY)
+
+      expect(events.length).toBe(1)
+      expect(events[0].name).toBe('Masked Element')
+    })
   })
 
   describe('rage clicks', () => {

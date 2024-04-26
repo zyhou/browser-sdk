@@ -7,17 +7,8 @@ const PR_COMMENTER_AUTH_TOKEN = command`authanywhere`.run().split(' ')[2].trim()
 // The value is set to 5% as it's around 10 times the average value for small PRs.
 const SIZE_INCREASE_THRESHOLD = 5
 const LOCAL_COMMIT_SHA = process.env.CI_COMMIT_SHORT_SHA
-const ACTION_NAMES = [
-  'adderror',
-  'addaction',
-  'logmessage',
-  'startview',
-  'startstopsessionreplayrecording',
-  'addtiming',
-  'addglobalcontext',
-]
 
-async function reportAsPrComment(localBundleSizes) {
+async function reportAsPrComment(localBundleSizes, memoryLocalPerformance) {
   const lastCommonCommit = getLastCommonCommit(BASE_BRANCH, LOCAL_BRANCH)
   const pr = await fetchPR(LOCAL_BRANCH)
   if (!pr) {
@@ -25,17 +16,23 @@ async function reportAsPrComment(localBundleSizes) {
     return
   }
   const packageNames = Object.keys(localBundleSizes)
+  const actionNames = memoryLocalPerformance.map((obj) => formatActionName(obj.sdkTask))
   const baseBundleSizes = await fetchPerformanceMetrics('bundle', packageNames, lastCommonCommit)
-  const cpuBasePerformance = await fetchPerformanceMetrics('cpu', ACTION_NAMES, lastCommonCommit)
-  const cpuLocalPerformance = await fetchPerformanceMetrics('cpu', ACTION_NAMES, LOCAL_COMMIT_SHA)
+  const cpuBasePerformance = await fetchPerformanceMetrics('cpu', actionNames, lastCommonCommit)
+  const cpuLocalPerformance = await fetchPerformanceMetrics('cpu', actionNames, LOCAL_COMMIT_SHA)
+  const memoryBasePerformance = await fetchPerformanceMetrics('memory', actionNames, lastCommonCommit)
+  const differenceMemory = compare(memoryBasePerformance, memoryLocalPerformance)
   const differenceBundle = compare(baseBundleSizes, localBundleSizes)
   const differenceCpu = compare(cpuBasePerformance, cpuLocalPerformance)
   const commentId = await retrieveExistingCommentId(pr.number)
   const message = createMessage(
     differenceBundle,
+    differenceMemory,
     differenceCpu,
     baseBundleSizes,
     localBundleSizes,
+    memoryBasePerformance,
+    memoryLocalPerformance,
     cpuBasePerformance,
     cpuLocalPerformance
   )
@@ -108,14 +105,17 @@ async function updateOrAddComment(message, prNumber, commentId) {
 
 function createMessage(
   differenceBundle,
+  differenceMemory,
   differenceCpu,
   baseBundleSizes,
   localBundleSizes,
+  memoryBasePerformance,
+  memoryLocalPerformance,
   cpuBasePerformance,
   cpuLocalPerformance
 ) {
   let message =
-    '| 📦 Bundle Name| Base Size | Local Size | 𝚫 | 𝚫% | Status |\n| --- | --- | --- | --- | --- | :---: |\n'
+    '|📦 Bundle Name | Base Size | Local Size | 𝚫 | 𝚫% | Status |\n| --- | --- | --- | --- | --- | :---: |\n'
   let highIncreaseDetected = false
   differenceBundle.forEach((diff, index) => {
     const baseSize = formatSize(baseBundleSizes[index].value)
@@ -129,11 +129,13 @@ function createMessage(
     }
     message += `| ${formatBundleName(diff.name)} | ${baseSize} | ${localSize} | ${diffSize} | ${sign}${diff.percentageChange}% | ${status} |\n`
   })
+  message += '</details>\n\n'
 
   if (highIncreaseDetected) {
     message += `\n⚠️ The increase is particularly high and exceeds ${SIZE_INCREASE_THRESHOLD}%. Please check the changes.`
   }
-  message += '\n\n<details>\n<summary>🚀 CPU Performance</summary>\n\n\n'
+
+  message += '\n\n<details>\n<summary>🚀 CPU Performance</summary>\n\n'
   message +=
     '| Action Name | Base Average Cpu Time (ms) | Local Average Cpu Time (ms) | 𝚫 |\n| --- | --- | --- | --- |\n'
   cpuBasePerformance.forEach((cpuActionPerformance, index) => {
@@ -146,6 +148,22 @@ function createMessage(
   })
   message += '\n</details>\n'
 
+  message += '\n\n<details>\n<summary>🧠 Memory Performance</summary>\n\n'
+  message +=
+    '| Action Name | Base Consumption Memory (bytes) | Local Consumption Memory (bytes) | 𝚫 |\n| --- | --- | --- | --- |\n'
+  differenceMemory.forEach((memoryActionPerformance, index) => {
+    const baseMemoryPerf = memoryBasePerformance[index]
+    const localMemoryPerf = memoryLocalPerformance.find(
+      (perf) => formatActionName(perf.sdkTask) === memoryActionPerformance.name
+    )
+    const baseMemoryTaskValue = baseMemoryPerf.value !== null ? baseMemoryPerf.value : 'N/A'
+    const localMemoryTaskValue =
+      localMemoryPerf && localMemoryPerf.sdkMemoryBytes !== null ? localMemoryPerf.sdkMemoryBytes : 'N/A'
+    const diffMemoryTaskValue = memoryActionPerformance.change !== null ? memoryActionPerformance.change : 'N/A'
+    message += `| ${memoryActionPerformance.name} | ${baseMemoryTaskValue} | ${localMemoryTaskValue} | ${diffMemoryTaskValue} |\n`
+  })
+  message += '\n</details>\n'
+
   return message
 }
 
@@ -154,6 +172,16 @@ function formatBundleName(bundleName) {
     .split('_')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
+}
+
+function formatActionName(taskName) {
+  return taskName
+    .replace('RUM - ', '')
+    .replace('Logs - ', '')
+    .replace(/ - /g, '_')
+    .replace(/ /g, '')
+    .replace(/\//g, '')
+    .toLowerCase()
 }
 
 function formatSize(bytes) {

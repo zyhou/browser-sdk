@@ -76,3 +76,16 @@ export function getClassList(element: Element): DOMTokenList | string[] {
   const classes = element.getAttribute('class')?.trim()
   return classes ? classes.split(/\s+/) : []
 }
+
+export function elementClasslistContains(element: Element, className: string): boolean {
+  const classList = getClassList(element)
+  if (classList instanceof DOMTokenList) {
+    return element.classList.contains(className)
+  }
+  for (let i = 0; i < classList.length; i += 1) {
+    if (classList[i] === className) {
+      return true
+    }
+  }
+  return false
+}

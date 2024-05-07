@@ -189,6 +189,7 @@ export function makeRumPublicApi(startRumImpl: StartRum, recorderApi: RecorderAp
   } = monitor((options?: string | ViewOptions) => {
     const sanitizedOptions = typeof options === 'object' ? options : { name: options }
     strategy.startView(sanitizedOptions)
+    addTelemetryUsage({ feature: 'start-view' })
   })
   const rumPublicApi = makePublicApi({
     init: monitor((initConfiguration: RumInitConfiguration) => strategy.init(initConfiguration)),

@@ -1,5 +1,5 @@
 import { round, find, ONE_SECOND, noop } from '@datadog/browser-core'
-import type { RelativeTime } from '@datadog/browser-core'
+import type { RelativeTime, WeakRef, WeakRefConstructor } from '@datadog/browser-core'
 import { isElementNode } from '../../../browser/htmlDomUtils'
 import type { LifeCycle } from '../../lifeCycle'
 import { LifeCycleEventType } from '../../lifeCycle'
@@ -12,6 +12,8 @@ export interface CumulativeLayoutShift {
   value: number
   targetSelector?: string
 }
+
+declare const WeakRef: WeakRefConstructor
 
 /**
  * Track the cumulative layout shifts (CLS).
@@ -42,7 +44,8 @@ export function trackCumulativeLayoutShift(
   }
 
   let maxClsValue = 0
-  let maxClsTargetSelector: string | undefined
+  // WeakRef is not supported in IE11 and Safari mobile, but so is the layout shift API, so this code won't be executed in these browsers
+  let maxClsTarget: WeakRef<HTMLElement> | undefined
 
   // if no layout shift happen the value should be reported as 0
   callback({
@@ -56,18 +59,19 @@ export function trackCumulativeLayoutShift(
         const { cumulatedValue, isMaxValue } = window.update(entry)
 
         if (isMaxValue) {
-          const maxClsTarget = getTargetSelctorFromSource(entry.sources)
-          maxClsTargetSelector = maxClsTarget?.isConnected
-            ? getSelectorFromElement(maxClsTarget, configuration.actionNameAttribute)
-            : undefined
+          const target = getTargetFromSource(entry.sources)
+          maxClsTarget = target ? new WeakRef(target) : undefined
         }
 
         if (cumulatedValue > maxClsValue) {
           maxClsValue = cumulatedValue
+          const target = maxClsTarget?.deref()
 
           callback({
             value: round(maxClsValue, 4),
-            targetSelector: maxClsTargetSelector,
+            targetSelector: target?.isConnected
+              ? getSelectorFromElement(target, configuration.actionNameAttribute)
+              : undefined,
           })
         }
       }
@@ -79,7 +83,7 @@ export function trackCumulativeLayoutShift(
   }
 }
 
-function getTargetSelctorFromSource(sources?: Array<{ node?: Node }>) {
+function getTargetFromSource(sources?: Array<{ node?: Node }>) {
   if (!sources) {
     return
   }
@@ -116,7 +120,6 @@ function slidingSessionWindow() {
 
         if (isMaxValue) {
           maxValue = entry.value
-          isMaxValue = true
         }
       }
 

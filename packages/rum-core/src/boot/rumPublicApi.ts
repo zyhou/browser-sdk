@@ -231,18 +231,23 @@ export function makeRumPublicApi(startRumImpl: StartRum, recorderApi: RecorderAp
 
     getInitConfiguration: monitor(() => deepClone(strategy.initConfiguration)),
 
-    addAction: monitor((name: string, context?: object) => {
-      strategy.addAction({
-        name: sanitize(name)!,
-        context: sanitize(context) as Context,
-        startClocks: clocksNow(),
-        type: ActionType.CUSTOM,
+    addAction: (name: string, context?: object) => {
+      const handlingStack = createHandlingStack(2)
+
+      callMonitored(() => {
+        strategy.addAction({
+          name: sanitize(name)!,
+          context: sanitize(context) as Context,
+          startClocks: clocksNow(),
+          type: ActionType.CUSTOM,
+          handlingStack,
+        })
+        addTelemetryUsage({ feature: 'add-action' })
       })
-      addTelemetryUsage({ feature: 'add-action' })
-    }),
+    },
 
     addError: (error: unknown, context?: object) => {
-      const handlingStack = createHandlingStack()
+      const handlingStack = createHandlingStack(2)
       callMonitored(() => {
         strategy.addError({
           error, // Do not sanitize error here, it is needed unserialized by computeRawError()

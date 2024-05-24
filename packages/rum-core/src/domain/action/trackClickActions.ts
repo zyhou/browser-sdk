@@ -14,12 +14,13 @@ import {
 } from '@datadog/browser-core'
 import type { FrustrationType } from '../../rawRumEvent.types'
 import { ActionType } from '../../rawRumEvent.types'
-import type { RumConfiguration } from '../configuration'
 import type { LifeCycle } from '../lifeCycle'
 import { LifeCycleEventType } from '../lifeCycle'
 import { trackEventCounts } from '../trackEventCounts'
 import { PAGE_ACTIVITY_VALIDATION_DELAY, waitPageActivityEnd } from '../waitPageActivityEnd'
 import { getSelectorFromElement } from '../getSelectorFromElement'
+import { getNodePrivacyLevel, NodePrivacyLevel } from '../privacy'
+import type { RumConfiguration } from '../configuration'
 import type { ClickChain } from './clickChain'
 import { createClickChain } from './clickChain'
 import { getActionNameFromElement } from './getActionNameFromElement'
@@ -42,6 +43,7 @@ export interface ClickAction {
     selector_with_stable_attributes?: string
     width: number
     height: number
+    masked?: boolean
   }
   position?: { x: number; y: number }
   startClocks: ClocksState
@@ -83,7 +85,7 @@ export function trackClickActions(
   }>(configuration, {
     onPointerDown: (pointerDownEvent) =>
       processPointerDown(configuration, lifeCycle, domMutationObservable, pointerDownEvent),
-    onPointerUp: ({ clickActionBase, hadActivityOnPointerDown }, startEvent, getUserActivity) =>
+    onPointerUp: ({ clickActionBase, hadActivityOnPointerDown }, startEvent, getUserActivity) => {
       startClickAction(
         configuration,
         lifeCycle,
@@ -95,7 +97,8 @@ export function trackClickActions(
         startEvent,
         getUserActivity,
         hadActivityOnPointerDown
-      ),
+      )
+    },
   })
 
   const actionContexts: ActionContexts = {
@@ -133,7 +136,15 @@ function processPointerDown(
   domMutationObservable: Observable<void>,
   pointerDownEvent: MouseEventOnElement
 ) {
-  const clickActionBase = computeClickActionBase(pointerDownEvent, configuration.actionNameAttribute)
+  const nodePrivacyLevel = configuration.enablePrivacyForActionName
+    ? getNodePrivacyLevel(pointerDownEvent.target, configuration.defaultPrivacyLevel)
+    : NodePrivacyLevel.ALLOW
+
+  if (nodePrivacyLevel === NodePrivacyLevel.HIDDEN) {
+    return undefined
+  }
+
+  const clickActionBase = computeClickActionBase(pointerDownEvent, nodePrivacyLevel, configuration)
 
   let hadActivityOnPointerDown = false
 
@@ -209,21 +220,29 @@ function startClickAction(
 
 type ClickActionBase = Pick<ClickAction, 'type' | 'name' | 'target' | 'position'>
 
-function computeClickActionBase(event: MouseEventOnElement, actionNameAttribute?: string): ClickActionBase {
+function computeClickActionBase(
+  event: MouseEventOnElement,
+  nodePrivacyLevel: NodePrivacyLevel,
+  configuration: RumConfiguration
+): ClickActionBase {
   const rect = event.target.getBoundingClientRect()
+
+  const { name: actionName, masked } = getActionNameFromElement(event.target, configuration, nodePrivacyLevel)
+
   return {
     type: ActionType.CLICK,
     target: {
       width: Math.round(rect.width),
       height: Math.round(rect.height),
-      selector: getSelectorFromElement(event.target, actionNameAttribute),
+      selector: getSelectorFromElement(event.target, configuration.actionNameAttribute),
+      masked,
     },
     position: {
       // Use clientX and Y because for SVG element offsetX and Y are relatives to the <svg> element
       x: Math.round(event.clientX - rect.left),
       y: Math.round(event.clientY - rect.top),
     },
-    name: getActionNameFromElement(event.target, actionNameAttribute),
+    name: actionName,
   }
 }
 

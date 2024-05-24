@@ -1,3 +1,5 @@
+import { includes } from '@datadog/browser-core'
+
 // https://github.com/jquery/jquery/blob/a684e6ba836f7c553968d7d026ed7941e1a612d8/src/selector/escapeSelector.js
 export function cssEscape(str: string) {
   if (window.CSS && window.CSS.escape) {
@@ -90,4 +92,12 @@ export class WeakSet<T extends object> {
   has(value: T) {
     return this.map.has(value)
   }
+}
+
+export function elementClasslistContains(element: Element, className: string): boolean {
+  const classList = getClassList(element)
+  if (classList instanceof DOMTokenList) {
+    return element.classList.contains(className)
+  }
+  return includes(classList, className)
 }

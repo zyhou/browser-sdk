@@ -15,6 +15,7 @@ export enum ExperimentalFeature {
   CUSTOM_VITALS = 'custom_vitals',
   TOLERANT_RESOURCE_TIMINGS = 'tolerant_resource_timings',
   MICRO_FRONTEND = 'micro_frontend',
+  ENABLE_PRIVACY_FOR_ACTION_NAME = 'enable_privacy_for_action_name',
 }
 
 const enabledExperimentalFeatures: Set<ExperimentalFeature> = new Set()

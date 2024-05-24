@@ -1,6 +1,5 @@
 import { isSafari } from '@datadog/browser-core'
-import { NodePrivacyLevel } from '../../../constants'
-import { shouldMaskNode } from '../privacy'
+import { NodePrivacyLevel, shouldMaskNode } from '@datadog/browser-rum-core'
 import { getElementInputValue, switchToAbsoluteUrl, getValidTagName } from './serializationUtils'
 import type { SerializeOptions } from './serialization.types'
 import { SerializationContextStatus } from './serialization.types'

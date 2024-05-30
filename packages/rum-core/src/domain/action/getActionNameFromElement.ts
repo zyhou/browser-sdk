@@ -27,7 +27,7 @@ export function getActionNameFromElement(
   if (nodePrivacyLevel === NodePrivacyLevel.MASK) {
     return {
       name: defaultActionName || ACTION_NAME_PLACEHOLDER,
-      masked: true,
+      masked: defaultActionName ? false : true,
     }
   }
 

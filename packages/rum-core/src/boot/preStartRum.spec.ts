@@ -670,7 +670,7 @@ describe('preStartRum', () => {
       const vital = strategy.startDurationVital(vitalStart)
       vital.stop()
 
-      strategy.init(DEFAULT_INIT_CONFIGURATION)
+      strategy.init(DEFAULT_INIT_CONFIGURATION, PUBLIC_API)
       expect(addDurationVitalSpy).toHaveBeenCalled()
     })
 
@@ -682,7 +682,7 @@ describe('preStartRum', () => {
 
       const vitalAdd = { name: 'timing', type: VitalType.DURATION, startClocks: clocksNow(), duration: 100 as Duration }
       strategy.addDurationVital(vitalAdd)
-      strategy.init(DEFAULT_INIT_CONFIGURATION)
+      strategy.init(DEFAULT_INIT_CONFIGURATION, PUBLIC_API)
       expect(addDurationVitalSpy).toHaveBeenCalledOnceWith(vitalAdd)
     })
   })

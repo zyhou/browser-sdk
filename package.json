@@ -56,7 +56,7 @@
     "eslint-plugin-import": "2.29.1",
     "eslint-plugin-jasmine": "4.2.0",
     "eslint-plugin-jsdoc": "48.3.0",
-    "eslint-plugin-local-rules": "2.0.1",
+    "eslint-plugin-local-rules": "3.0.2",
     "eslint-plugin-prefer-arrow": "1.2.3",
     "eslint-plugin-unicorn": "54.0.0",
     "express": "4.19.2",
@@ -90,7 +90,8 @@
   "resolutions": {
     "ansi-regex": "5.0.1",
     "@mantine/core/type-fest": "4.20.1",
-    "ws": "8.17.1"
+    "ws": "8.17.1",
+    "puppeteer-core@npm:20.9.0/ws": "8.17.1"
   },
   "volta": {
     "node": "20.15.0",

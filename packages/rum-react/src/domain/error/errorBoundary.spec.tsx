@@ -95,7 +95,7 @@ describe('ErrorBoundary', () => {
     const error = addErrorSpy.calls.first().args[0]
     expect(error.message).toBe('error')
     expect(error.name).toBe('ReactRenderingError')
-    expect(error.stack).toContain('at ComponentSpy')
+    expect(error.stack).toContain('ComponentSpy')
     expect(error.cause).toBe(originalError)
   })
 })

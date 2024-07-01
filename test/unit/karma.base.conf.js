@@ -6,8 +6,9 @@ const webpackConfig = require('../../webpack.base')({
 })
 const { getTestReportDirectory } = require('../envUtils')
 const jasmineSeedReporterPlugin = require('./jasmineSeedReporterPlugin')
+const karmaSkippedFailedReporterPlugin = require('./karmaSkippedFailedReporterPlugin')
 
-const reporters = ['spec', 'jasmine-seed']
+const reporters = ['spec', 'jasmine-seed', 'karma-skipped-failed']
 
 const testReportDirectory = getTestReportDirectory()
 if (testReportDirectory) {
@@ -16,7 +17,11 @@ if (testReportDirectory) {
 
 module.exports = {
   basePath: '../..',
-  files: ['packages/*/+(src|test)/**/*.spec.ts', 'packages/rum/test/toto.css'],
+  files: [
+    'packages/*/@(src|test)/**/*.spec.@(ts|tsx)',
+    'developer-extension/@(src|test)/**/*.spec.@(ts|tsx)',
+    'packages/rum/test/toto.css',
+  ],
   frameworks: ['jasmine', 'webpack'],
   client: {
     jasmine: {
@@ -25,7 +30,7 @@ module.exports = {
     },
   },
   preprocessors: {
-    'packages/*/+(src|test)/**/*.ts': ['webpack', 'sourcemap'],
+    '**/*.+(ts|tsx)': ['webpack', 'sourcemap'],
   },
   reporters,
   specReporter: {
@@ -63,7 +68,7 @@ module.exports = {
     stats: 'errors-only',
     logLevel: 'warn',
   },
-  plugins: ['karma-*', jasmineSeedReporterPlugin],
+  plugins: ['karma-*', jasmineSeedReporterPlugin, karmaSkippedFailedReporterPlugin],
 
   // Running tests on low performance environments (ex: BrowserStack) can block JS execution for a
   // few seconds. We need to increase those two timeout values to make sure Karma (and underlying

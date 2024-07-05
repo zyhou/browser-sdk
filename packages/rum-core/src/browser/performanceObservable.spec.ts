@@ -27,7 +27,6 @@ describe('performanceObservable', () => {
 
   afterEach(() => {
     performanceSubscription.unsubscribe()
-    clock.cleanup()
   })
 
   it('should notify performance resources', () => {

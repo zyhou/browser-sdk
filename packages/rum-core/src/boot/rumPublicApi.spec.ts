@@ -11,7 +11,7 @@ import {
   CustomerDataCompressionStatus,
   timeStampToClocks,
 } from '@datadog/browser-core'
-import { cleanupSyntheticsWorkerValues, mockExperimentalFeatures } from '@datadog/browser-core/test'
+import { mockExperimentalFeatures } from '@datadog/browser-core/test'
 import type { TestSetupBuilder } from '../../test'
 import { setup, noopRecorderApi } from '../../test'
 import { ActionType } from '../rawRumEvent.types'
@@ -44,10 +44,6 @@ describe('rum public api', () => {
 
     beforeEach(() => {
       startRumSpy = jasmine.createSpy().and.callFake(noopStartRum)
-    })
-
-    afterEach(() => {
-      cleanupSyntheticsWorkerValues()
     })
 
     describe('deflate worker', () => {

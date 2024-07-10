@@ -6,9 +6,9 @@ export type Clock = {
   setDate: (date: Date) => void
 }
 
-export function mockClock(beforeCleanup?: () => void): Clock {
+export function mockClock(beforeCleanup?: () => void, date?: Date): Clock {
   jasmine.clock().install()
-  jasmine.clock().mockDate()
+  jasmine.clock().mockDate(date)
   const start = Date.now()
   spyOn(performance, 'now').and.callFake(() => Date.now() - start)
   spyOnProperty(performance.timing, 'navigationStart', 'get').and.callFake(() => start)

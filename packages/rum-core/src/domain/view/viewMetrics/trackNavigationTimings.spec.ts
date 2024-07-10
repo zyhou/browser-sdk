@@ -1,4 +1,4 @@
-import type { Duration, RelativeTime } from '@datadog/browser-core'
+import { noop, type Duration, type RelativeTime } from '@datadog/browser-core'
 import type { Clock } from '@datadog/browser-core/test'
 import { mockClock, registerCleanupTask } from '@datadog/browser-core/test'
 import type { RumPerformanceEntry } from '../../../browser/performanceObservable'
@@ -29,7 +29,6 @@ describe('trackNavigationTimings', () => {
 
   afterEach(() => {
     stop()
-    clock?.cleanup()
   })
 
   it('should provide navigation timing', () => {
@@ -57,7 +56,7 @@ describe('trackNavigationTimings', () => {
   })
 
   it('should provide navigation timing when navigation timing is not supported ', () => {
-    clock = mockClock(new Date(0))
+    clock = mockClock(noop, new Date(0))
     mockPerformanceTiming()
     removePerformanceObserver()
 

@@ -307,7 +307,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@datadog/browser-core@npm:5.22.0, @datadog/browser-core@workspace:*, @datadog/browser-core@workspace:packages/core":
+"@datadog/browser-core@npm:5.23.0, @datadog/browser-core@workspace:*, @datadog/browser-core@workspace:packages/core":
   version: 0.0.0-use.local
   resolution: "@datadog/browser-core@workspace:packages/core"
   languageName: unknown
@@ -317,20 +317,20 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@datadog/browser-logs@workspace:packages/logs"
   dependencies:
-    "@datadog/browser-core": "npm:5.22.0"
+    "@datadog/browser-core": "npm:5.23.0"
   peerDependencies:
-    "@datadog/browser-rum": 5.22.0
+    "@datadog/browser-rum": 5.23.0
   peerDependenciesMeta:
     "@datadog/browser-rum":
       optional: true
   languageName: unknown
   linkType: soft
 
-"@datadog/browser-rum-core@npm:5.22.0, @datadog/browser-rum-core@workspace:packages/rum-core":
+"@datadog/browser-rum-core@npm:5.23.0, @datadog/browser-rum-core@workspace:packages/rum-core":
   version: 0.0.0-use.local
   resolution: "@datadog/browser-rum-core@workspace:packages/rum-core"
   dependencies:
-    "@datadog/browser-core": "npm:5.22.0"
+    "@datadog/browser-core": "npm:5.23.0"
     ajv: "npm:6.12.6"
   languageName: unknown
   linkType: soft
@@ -345,8 +345,8 @@ __metadata:
     react-dom: "npm:18.3.1"
     react-router-dom: "npm:6.25.0"
   peerDependencies:
-    "@datadog/browser-core": 5.21.0
-    "@datadog/browser-rum-core": 5.21.0
+    "@datadog/browser-core": 5.23.0
+    "@datadog/browser-rum-core": 5.23.0
     react: 18
     react-router-dom: 6
   peerDependenciesMeta:
@@ -361,10 +361,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@datadog/browser-rum-slim@workspace:packages/rum-slim"
   dependencies:
-    "@datadog/browser-core": "npm:5.22.0"
-    "@datadog/browser-rum-core": "npm:5.22.0"
+    "@datadog/browser-core": "npm:5.23.0"
+    "@datadog/browser-rum-core": "npm:5.23.0"
   peerDependencies:
-    "@datadog/browser-logs": 5.22.0
+    "@datadog/browser-logs": 5.23.0
   peerDependenciesMeta:
     "@datadog/browser-logs":
       optional: true
@@ -375,12 +375,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@datadog/browser-rum@workspace:packages/rum"
   dependencies:
-    "@datadog/browser-core": "npm:5.22.0"
-    "@datadog/browser-rum-core": "npm:5.22.0"
+    "@datadog/browser-core": "npm:5.23.0"
+    "@datadog/browser-rum-core": "npm:5.23.0"
     "@types/pako": "npm:2.0.3"
     pako: "npm:2.1.0"
   peerDependencies:
-    "@datadog/browser-logs": 5.22.0
+    "@datadog/browser-logs": 5.23.0
   peerDependenciesMeta:
     "@datadog/browser-logs":
       optional: true
@@ -416,7 +416,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@datadog/browser-worker@workspace:packages/worker"
   dependencies:
-    "@datadog/browser-core": "npm:5.22.0"
+    "@datadog/browser-core": "npm:5.23.0"
     webpack: "npm:5.93.0"
   languageName: unknown
   linkType: soft
@@ -3454,7 +3454,7 @@ __metadata:
     karma-spec-reporter: "npm:0.0.36"
     karma-webpack: "npm:5.0.0"
     lerna: "npm:8.1.6"
-    minimatch: "npm:9.0.5"
+    minimatch: "npm:10.0.1"
     npm-run-all: "npm:4.1.5"
     prettier: "npm:3.3.3"
     puppeteer: "npm:22.13.0"
@@ -9158,6 +9158,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"minimatch@npm:10.0.1, minimatch@npm:^10.0.0":
+  version: 10.0.1
+  resolution: "minimatch@npm:10.0.1"
+  dependencies:
+    brace-expansion: "npm:^2.0.1"
+  checksum: 10c0/e6c29a81fe83e1877ad51348306be2e8aeca18c88fdee7a99df44322314279e15799e41d7cb274e4e8bb0b451a3bc622d6182e157dfa1717d6cda75e9cd8cd5d
+  languageName: node
+  linkType: hard
+
 "minimatch@npm:3.0.5":
   version: 3.0.5
   resolution: "minimatch@npm:3.0.5"
@@ -9173,24 +9182,6 @@ __metadata:
   dependencies:
     brace-expansion: "npm:^2.0.1"
   checksum: 10c0/85f407dcd38ac3e180f425e86553911d101455ca3ad5544d6a7cec16286657e4f8a9aa6695803025c55e31e35a91a2252b5dc8e7d527211278b8b65b4dbd5eac
-  languageName: node
-  linkType: hard
-
-"minimatch@npm:9.0.5, minimatch@npm:^9.0.0, minimatch@npm:^9.0.4":
-  version: 9.0.5
-  resolution: "minimatch@npm:9.0.5"
-  dependencies:
-    brace-expansion: "npm:^2.0.1"
-  checksum: 10c0/de96cf5e35bdf0eab3e2c853522f98ffbe9a36c37797778d2665231ec1f20a9447a7e567cb640901f89e4daaa95ae5d70c65a9e8aa2bb0019b6facbc3c0575ed
-  languageName: node
-  linkType: hard
-
-"minimatch@npm:^10.0.0":
-  version: 10.0.1
-  resolution: "minimatch@npm:10.0.1"
-  dependencies:
-    brace-expansion: "npm:^2.0.1"
-  checksum: 10c0/e6c29a81fe83e1877ad51348306be2e8aeca18c88fdee7a99df44322314279e15799e41d7cb274e4e8bb0b451a3bc622d6182e157dfa1717d6cda75e9cd8cd5d
   languageName: node
   linkType: hard
 
@@ -9218,6 +9209,15 @@ __metadata:
   dependencies:
     brace-expansion: "npm:^2.0.1"
   checksum: 10c0/6deed7078b84934179cec0cc0b46d27b76f995deda7f5d1833f376d8e4c062f4df08f4d979899109b4304fae975b0ebd877aa2a8a94b70ad76d640bf44c070e2
+  languageName: node
+  linkType: hard
+
+"minimatch@npm:^9.0.0, minimatch@npm:^9.0.4":
+  version: 9.0.5
+  resolution: "minimatch@npm:9.0.5"
+  dependencies:
+    brace-expansion: "npm:^2.0.1"
+  checksum: 10c0/de96cf5e35bdf0eab3e2c853522f98ffbe9a36c37797778d2665231ec1f20a9447a7e567cb640901f89e4daaa95ae5d70c65a9e8aa2bb0019b6facbc3c0575ed
   languageName: node
   linkType: hard
 

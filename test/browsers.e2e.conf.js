@@ -1,5 +1,8 @@
 // Capabilities: https://www.browserstack.com/automate/capabilities
 
+/**
+ * @type {import('./browsers.conf').BrowserConfigurations}
+ */
 const browserConfigurations = [
   {
     sessionName: 'Edge',

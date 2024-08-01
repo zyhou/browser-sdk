@@ -8,42 +8,43 @@ export function computeSelectionState(
   facet: Facet,
   facetValue: FacetValue
 ): SelectionState {
-  const filteredFacetValues = facetValuesFilter.facetValues[facet.path]
+  const childrenFacets = getAllChildren(facet, facetValue)
 
-  if (!filteredFacetValues) {
-    return facetValuesFilter.type === 'include' ? 'unselected' : 'selected'
-  }
-
-  // const childrenFacets = getAllChildren(facet, facetValue)
-  const childFacets = facet.values?.[facetValue]?.facets
-  console.log('childFacets', childFacets, facetValue)
   // we cannot know how many children in total there are, so we need to have facetRegistry
-  const children = childFacets && childFacets.flatMap((child) => facetRegistry.getFacetChildrenValues(child.path))
-
+  const children = childrenFacets.flatMap((child) => facetRegistry.getFacetChildrenValues(child.path))
+  const filteredFacetValues = childrenFacets.flatMap((child) => facetValuesFilter.facetValues[child.path] ?? [])
+  filteredFacetValues.push(...(facetValuesFilter.facetValues[facet.path] ?? []))
+  const ifFilterEmpty = Object.keys(facetValuesFilter.facetValues).length === 0
   if (facetValuesFilter.type === 'include') {
+    if (ifFilterEmpty) {
+      return 'unselected'
+    }
     // if facet.value is in facetValueFilter, then it should be selected
     if (filteredFacetValues.includes(facetValue)) {
       return 'selected'
     }
     // if all children are in the filter, then it should be selected'
-    if (children && children.every((child) => filteredFacetValues.includes(child))) {
+    if (children.length > 0 && children.every((child) => filteredFacetValues.includes(child))) {
       return 'selected'
     }
     // if any of the children of the facet is in the filter, then it should be partial-selected
-    if (children && children.some((child) => filteredFacetValues.includes(child))) {
+    if (children.length > 0 && children.some((child) => filteredFacetValues.includes(child))) {
       return 'partial-selected'
     }
   } else if (facetValuesFilter.type === 'exclude') {
+    if (ifFilterEmpty) {
+      return 'selected'
+    }
     // if facet.value is in facetValueFilter, then it should be unselected
     if (filteredFacetValues.includes(facetValue)) {
       return 'unselected'
     }
     // if all children are in the filter, then it should be unselected
-    if (children && children.every((child) => filteredFacetValues.includes(child))) {
+    if (children.length > 0 && children.every((child) => filteredFacetValues.includes(child))) {
       return 'unselected'
     }
     // if any of the children of the facet is in the filter, then it should be partial-selected
-    if (children && children.some((child) => filteredFacetValues.includes(child))) {
+    if (children.length > 0 && children.some((child) => filteredFacetValues.includes(child))) {
       return 'partial-selected'
     }
     return 'selected'

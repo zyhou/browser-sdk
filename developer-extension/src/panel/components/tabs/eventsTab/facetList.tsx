@@ -86,7 +86,7 @@ function FacetValue({
 }) {
   const isTopLevel = depth === 0
   const facetSelectState = computeSelectionState(facetValuesFilter, facetRegistry, facet, facetValue)
-  console.log(facetSelectState, facetValuesFilter)
+  // console.log(facetSelectState, facetValuesFilter)
   const isCollapsed = !facetValuesFilter.facetValues[facet.path] || !facetValuesFilter.facetValues[facet.path].includes(facetValue)
   const isSelected = facetValuesFilter.facetValues[facet.path] && facetValuesFilter.facetValues[facet.path].includes(facetValue)
   const isOnly = facetValuesFilter.type === 'include' && Object.keys(facetValuesFilter.facetValues).length === 1
@@ -105,6 +105,7 @@ function FacetValue({
         variant={isOnly && isSelected ? 'filled' : 'light'}
         size="compact-xs"
         w="40px"
+        disabled={isOnly && !isSelected}
         onClick={() => {
           const filterType = isOnly ? 'exclude' : 'include'
           onExcludedFacetValuesChange(toggleFacetValue(filterType, facet, facetValuesFilter, facetValue))
@@ -115,7 +116,7 @@ function FacetValue({
 
   const childFacets = facet.values?.[facetValue]?.facets
   const children = childFacets && (
-    <Collapse in={true}>
+    <Collapse in={isCollapsed}>
       <Box className={classes.facetChildren} data-top-level={isTopLevel ? true : undefined}>
         {childFacets.map((facet) => (
           <FacetField

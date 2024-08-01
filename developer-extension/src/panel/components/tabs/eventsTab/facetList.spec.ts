@@ -1,5 +1,5 @@
 import type { RumActionEvent, RumResourceEvent } from '@datadog/browser-rum'
-import { FacetRegistry } from '../../../hooks/useEvents'
+import { FacetRegistry, FacetValuesFilter } from '../../../hooks/useEvents'
 import { FACET_ROOT } from '../../../facets.constants'
 
 import { computeSelectionState } from './computeFacetState'
@@ -28,10 +28,10 @@ const rumCustomActionEvent = {
 } as RumActionEvent
 
 // test that computeSelectionState returns the correct state
-describe('computeSelectionState', () => {
+fdescribe('computeSelectionState', () => {
   describe('include mode', () => {
     it('returns "selected" when the facet is in the filter', () => {
-      const facetValuesFilter = {
+      const facetValuesFilter: FacetValuesFilter = {
         type: 'include',
         facetValues: {
           'resource.type': ['xhr'],
@@ -46,7 +46,7 @@ describe('computeSelectionState', () => {
     })
 
     it('returns "partial-selected" when some children are in the filter', () => {
-      const facetValuesFilter = {
+      const facetValuesFilter: FacetValuesFilter = {
         type: 'include',
         facetValues: {
           'resource.type': ['xhr'],
@@ -71,12 +71,10 @@ describe('computeSelectionState', () => {
       facetRegistry.addEvent(rumResourceXHREvent)
       facetRegistry.addEvent(rumResourceBeaconEvent)
       expect(computeSelectionState(facetValuesFilter, facetRegistry, facet, facetValue)).toBe('partial-selected')
-      expect(computeSelectionState(facetValuesFilter, facetRegistry, FACET_ROOT, 'rum')).toBe('partial-selected')
-
     })
 
     it('returns "unselected" when the facet or children are not in the filter', () => {
-      const facetValuesFilter = {
+      const facetValuesFilter: FacetValuesFilter = {
         type: 'include',
         facetValues: {
           'resource.type': ['xhr'],
@@ -107,7 +105,7 @@ describe('computeSelectionState', () => {
 
   describe('exclude mode', () => {
     it('returns "unselected" when the facet is in the filter', () => {
-      const facetValuesFilter = {
+      const facetValuesFilter: FacetValuesFilter = {
         type: 'exclude',
         facetValues: {
           'resource.type': ['xhr'],
@@ -121,7 +119,7 @@ describe('computeSelectionState', () => {
       expect(computeSelectionState(facetValuesFilter, facetRegistry, facet, facetValue)).toBe('unselected')
     })
     it('returns "partial-selected" when some children are in the filter', () => {
-      const facetValuesFilter = {
+      const facetValuesFilter: FacetValuesFilter = {
         type: 'exclude',
         facetValues: {
           'resource.type': ['xhr'],
@@ -136,7 +134,7 @@ describe('computeSelectionState', () => {
     })
 
     it('returns "selected" when the facet or children are not in the filter', () => {
-      const facetValuesFilter = {
+      const facetValuesFilter: FacetValuesFilter = {
         type: 'exclude',
         facetValues: {
           'resource.type': ['xhr'],

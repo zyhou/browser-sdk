@@ -1,9 +1,10 @@
-import { Box, Card, Checkbox, Collapse, Flex, Text } from '@mantine/core'
+import { Box, Button, Card, Checkbox, Collapse, Flex, Text } from '@mantine/core'
 import React from 'react'
 import type { FacetValuesFilter, FacetRegistry } from '../../../hooks/useEvents'
 import type { Facet } from '../../../facets.constants'
 import { FACET_ROOT, FacetValue } from '../../../facets.constants'
 import * as classes from './facetList.module.css'
+import { computeSelectionState } from './computeFacetState'
 
 export function FacetList({
   facetRegistry,
@@ -84,23 +85,37 @@ function FacetValue({
   onExcludedFacetValuesChange: (newExcludedFacetValues: FacetValuesFilter) => void
 }) {
   const isTopLevel = depth === 0
-  const isSelected = !facetValuesFilter.facetValues[facet.path] || !facetValuesFilter.facetValues[facet.path].includes(facetValue)
+  const facetSelectState = computeSelectionState(facetValuesFilter, facetRegistry, facet, facetValue)
+  console.log(facetSelectState, facetValuesFilter)
+  const isCollapsed = !facetValuesFilter.facetValues[facet.path] || !facetValuesFilter.facetValues[facet.path].includes(facetValue)
+  const isSelected = facetValuesFilter.facetValues[facet.path] && facetValuesFilter.facetValues[facet.path].includes(facetValue)
+  const isOnly = facetValuesFilter.type === 'include' && Object.keys(facetValuesFilter.facetValues).length === 1
   const value = (
     <Flex justify="space-between" mt={isTopLevel ? 'xs' : SPACE_BETWEEN_CHECKBOX}>
       <Checkbox
         label={facet.values?.[facetValue]?.label ?? facetValue}
-        checked={isSelected}
+        checked={facetSelectState === 'selected'}
+        indeterminate={facetSelectState === 'partial-selected'}
         onChange={() => {
           onExcludedFacetValuesChange(toggleExcludedFacetValue(facet, facetValuesFilter, facetValue))
         }}
       />
       <Text>{facetValueCount}</Text>
+      <Button
+        variant={isOnly && isSelected ? 'filled' : 'light'}
+        size="compact-xs"
+        w="40px"
+        onClick={() => {
+          const filterType = isOnly ? 'exclude' : 'include'
+          onExcludedFacetValuesChange(toggleFacetValue(filterType, facet, facetValuesFilter, facetValue))
+        }}
+      >{isOnly && isSelected ? 'all' : 'only'}</Button>
     </Flex>
   )
 
   const childFacets = facet.values?.[facetValue]?.facets
   const children = childFacets && (
-    <Collapse in={isSelected}>
+    <Collapse in={true}>
       <Box className={classes.facetChildren} data-top-level={isTopLevel ? true : undefined}>
         {childFacets.map((facet) => (
           <FacetField
@@ -159,4 +174,32 @@ function toggleExcludedFacetValue(
   }
 
   return {type: 'exclude', facetValues: newExcludedFacetValues}
+}
+
+function toggleFacetValue(
+  type: 'include' | 'exclude',
+  facet: Facet,
+  facetValuesFilter: FacetValuesFilter,
+  value: FacetValue
+): FacetValuesFilter {
+
+  const currentValues = facetValuesFilter.facetValues[facet.path]
+
+  const newFacetValues = { ...facetValuesFilter.facetValues }
+
+  if (!currentValues) {
+    // Add exclusion. Nothing was excluded yet, create a new list
+    newFacetValues[facet.path] = [value]
+  } else if (!currentValues.includes(value)) {
+    // Add exclusion. Some other values are already excluded, add it to the list
+    newFacetValues[facet.path] = currentValues.concat(value)
+  } else if (currentValues.length === 1) {
+    // Remove exclusion. If it's the only value, delete the list altogether.
+    delete newFacetValues[facet.path]
+  } else {
+    // Remove exclusion. Filter out the the value from the existing list.
+    newFacetValues[facet.path] = currentValues.filter((other) => other !== value)
+  }
+
+  return { type, facetValues: newFacetValues }
 }

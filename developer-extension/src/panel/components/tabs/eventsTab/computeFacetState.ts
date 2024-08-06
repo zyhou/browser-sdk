@@ -12,7 +12,8 @@ export function computeSelectionState(
   const childrenFacets = facet.values?.[facetValue]?.facets
 
   // we cannot know how many children in total there are, so we need to have facetRegistry
-  const children = childrenFacets && childrenFacets.flatMap((child) => facetRegistry.getFacetChildrenValues(child.path))
+  const children =
+    childrenFacets && childrenFacets.flatMap((child: Facet) => facetRegistry.getFacetChildrenValues(child.path))
   const filteredFacetValues = Object.values(facetValuesFilter.facetValues).flat()
   const isFiltering = !!Object.keys(facetValuesFilter.facetValues)
 

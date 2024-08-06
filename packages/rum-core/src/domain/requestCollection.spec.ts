@@ -1,22 +1,22 @@
 import type { Payload } from '@datadog/browser-core'
 import { isIE, RequestType } from '@datadog/browser-core'
-import type { FetchStub, FetchStubManager } from '@datadog/browser-core/test'
-import { SPEC_ENDPOINTS, stubFetch, stubXhr, withXhr } from '@datadog/browser-core/test'
+import type { MockFetch, MockFetchManager, MockXhrManager } from '@datadog/browser-core/test'
+import { registerCleanupTask, SPEC_ENDPOINTS, mockFetch, mockXhr, withXhr } from '@datadog/browser-core/test'
 import type { RumConfiguration } from './configuration'
 import { validateAndBuildRumConfiguration } from './configuration'
 import { LifeCycle, LifeCycleEventType } from './lifeCycle'
 import type { RequestCompleteEvent, RequestStartEvent } from './requestCollection'
 import { trackFetch, trackXhr } from './requestCollection'
 import type { Tracer } from './tracing/tracer'
-import { clearTracingIfNeeded, TraceIdentifier } from './tracing/tracer'
+import { clearTracingIfNeeded, createTraceIdentifier } from './tracing/tracer'
 
 const DEFAULT_PAYLOAD = {} as Payload
 
 describe('collect fetch', () => {
   let configuration: RumConfiguration
   const FAKE_URL = 'http://fake-url/'
-  let fetchStub: FetchStub
-  let fetchStubManager: FetchStubManager
+  let fetch: MockFetch
+  let mockFetchManager: MockFetchManager
   let startSpy: jasmine.Spy<(requestStartEvent: RequestStartEvent) => void>
   let completeSpy: jasmine.Spy<(requestCompleteEvent: RequestCompleteEvent) => void>
   let stopFetchTracking: () => void
@@ -30,7 +30,7 @@ describe('collect fetch', () => {
       ...SPEC_ENDPOINTS,
       batchMessagesLimit: 1,
     }
-    fetchStubManager = stubFetch()
+    mockFetchManager = mockFetch()
 
     startSpy = jasmine.createSpy('requestStart')
     completeSpy = jasmine.createSpy('requestComplete')
@@ -40,37 +40,33 @@ describe('collect fetch', () => {
     const tracerStub: Partial<Tracer> = {
       clearTracingIfNeeded,
       traceFetch: (context) => {
-        context.traceId = new TraceIdentifier()
-        context.spanId = new TraceIdentifier()
+        context.traceId = createTraceIdentifier()
+        context.spanId = createTraceIdentifier()
       },
     }
     ;({ stop: stopFetchTracking } = trackFetch(lifeCycle, configuration, tracerStub as Tracer))
 
-    fetchStub = window.fetch as FetchStub
-    window.onunhandledrejection = (ev: PromiseRejectionEvent) => {
-      throw new Error(`unhandled rejected promise \n    ${ev.reason as string}`)
-    }
-  })
+    fetch = window.fetch as MockFetch
 
-  afterEach(() => {
-    stopFetchTracking()
-    fetchStubManager.reset()
-    window.onunhandledrejection = null
+    registerCleanupTask(() => {
+      stopFetchTracking()
+      mockFetchManager.reset()
+    })
   })
 
   it('should notify on request start', (done) => {
-    fetchStub(FAKE_URL).resolveWith({ status: 500, responseText: 'fetch error' })
+    fetch(FAKE_URL).resolveWith({ status: 500, responseText: 'fetch error' })
 
-    fetchStubManager.whenAllComplete(() => {
+    mockFetchManager.whenAllComplete(() => {
       expect(startSpy).toHaveBeenCalledWith({ requestIndex: jasmine.any(Number) as unknown as number, url: FAKE_URL })
       done()
     })
   })
 
   it('should notify on request without body', (done) => {
-    fetchStub(FAKE_URL).resolveWith({ status: 200 })
+    fetch(FAKE_URL).resolveWith({ status: 200 })
 
-    fetchStubManager.whenAllComplete(() => {
+    mockFetchManager.whenAllComplete(() => {
       const request = completeSpy.calls.argsFor(0)[0]
 
       expect(request.type).toEqual(RequestType.FETCH)
@@ -83,9 +79,9 @@ describe('collect fetch', () => {
   })
 
   it('should notify on request with body used by another instrumentation', (done) => {
-    fetchStub(FAKE_URL).resolveWith({ status: 200, bodyUsed: true })
+    fetch(FAKE_URL).resolveWith({ status: 200, bodyUsed: true })
 
-    fetchStubManager.whenAllComplete(() => {
+    mockFetchManager.whenAllComplete(() => {
       const request = completeSpy.calls.argsFor(0)[0]
 
       expect(request.type).toEqual(RequestType.FETCH)
@@ -98,9 +94,9 @@ describe('collect fetch', () => {
   })
 
   it('should notify on request with body disturbed', (done) => {
-    fetchStub(FAKE_URL).resolveWith({ status: 200, bodyDisturbed: true })
+    fetch(FAKE_URL).resolveWith({ status: 200, bodyDisturbed: true })
 
-    fetchStubManager.whenAllComplete(() => {
+    mockFetchManager.whenAllComplete(() => {
       const request = completeSpy.calls.argsFor(0)[0]
 
       expect(request.type).toEqual(RequestType.FETCH)
@@ -113,9 +109,9 @@ describe('collect fetch', () => {
   })
 
   it('should notify on request complete', (done) => {
-    fetchStub(FAKE_URL).resolveWith({ status: 500, responseText: 'fetch error' })
+    fetch(FAKE_URL).resolveWith({ status: 500, responseText: 'fetch error' })
 
-    fetchStubManager.whenAllComplete(() => {
+    mockFetchManager.whenAllComplete(() => {
       const request = completeSpy.calls.argsFor(0)[0]
 
       expect(request.type).toEqual(RequestType.FETCH)
@@ -128,9 +124,9 @@ describe('collect fetch', () => {
   })
 
   it('should assign a request id', (done) => {
-    fetchStub(FAKE_URL).resolveWith({ status: 500, responseText: 'fetch error' })
+    fetch(FAKE_URL).resolveWith({ status: 500, responseText: 'fetch error' })
 
-    fetchStubManager.whenAllComplete(() => {
+    mockFetchManager.whenAllComplete(() => {
       const startRequestIndex = startSpy.calls.argsFor(0)[0].requestIndex
       const completeRequestIndex = completeSpy.calls.argsFor(0)[0].requestIndex
 
@@ -140,12 +136,12 @@ describe('collect fetch', () => {
   })
 
   it('should ignore intake requests', (done) => {
-    fetchStub(SPEC_ENDPOINTS.rumEndpointBuilder.build('xhr', DEFAULT_PAYLOAD)).resolveWith({
+    fetch(SPEC_ENDPOINTS.rumEndpointBuilder.build('xhr', DEFAULT_PAYLOAD)).resolveWith({
       status: 200,
       responseText: 'foo',
     })
 
-    fetchStubManager.whenAllComplete(() => {
+    mockFetchManager.whenAllComplete(() => {
       expect(startSpy).not.toHaveBeenCalled()
       expect(completeSpy).not.toHaveBeenCalled()
       done()
@@ -154,9 +150,9 @@ describe('collect fetch', () => {
 
   describe('tracing', () => {
     it('should trace requests by default', (done) => {
-      fetchStub(FAKE_URL).resolveWith({ status: 200, responseText: 'ok' })
+      fetch(FAKE_URL).resolveWith({ status: 200, responseText: 'ok' })
 
-      fetchStubManager.whenAllComplete(() => {
+      mockFetchManager.whenAllComplete(() => {
         const request = completeSpy.calls.argsFor(0)[0]
 
         expect(request.traceId).toBeDefined()
@@ -165,9 +161,9 @@ describe('collect fetch', () => {
     })
 
     it('should trace aborted requests', (done) => {
-      fetchStub(FAKE_URL).abort()
+      fetch(FAKE_URL).abort()
 
-      fetchStubManager.whenAllComplete(() => {
+      mockFetchManager.whenAllComplete(() => {
         const request = completeSpy.calls.argsFor(0)[0]
 
         expect(request.traceId).toBeDefined()
@@ -176,9 +172,9 @@ describe('collect fetch', () => {
     })
 
     it('should not trace requests ending with status 0', (done) => {
-      fetchStub(FAKE_URL).resolveWith({ status: 0, responseText: 'fetch cancelled' })
+      fetch(FAKE_URL).resolveWith({ status: 0, responseText: 'fetch cancelled' })
 
-      fetchStubManager.whenAllComplete(() => {
+      mockFetchManager.whenAllComplete(() => {
         const request = completeSpy.calls.argsFor(0)[0]
 
         expect(request.status).toEqual(0)
@@ -193,7 +189,7 @@ describe('collect xhr', () => {
   let configuration: RumConfiguration
   let startSpy: jasmine.Spy<(requestStartEvent: RequestStartEvent) => void>
   let completeSpy: jasmine.Spy<(requestCompleteEvent: RequestCompleteEvent) => void>
-  let stubXhrManager: { reset(): void }
+  let mockXhrManager: MockXhrManager
   let stopXhrTracking: () => void
 
   beforeEach(() => {
@@ -205,7 +201,7 @@ describe('collect xhr', () => {
       ...SPEC_ENDPOINTS,
       batchMessagesLimit: 1,
     }
-    stubXhrManager = stubXhr()
+    mockXhrManager = mockXhr()
     startSpy = jasmine.createSpy('requestStart')
     completeSpy = jasmine.createSpy('requestComplete')
     const lifeCycle = new LifeCycle()
@@ -214,16 +210,16 @@ describe('collect xhr', () => {
     const tracerStub: Partial<Tracer> = {
       clearTracingIfNeeded,
       traceXhr: (context) => {
-        context.traceId = new TraceIdentifier()
-        context.spanId = new TraceIdentifier()
+        context.traceId = createTraceIdentifier()
+        context.spanId = createTraceIdentifier()
       },
     }
     ;({ stop: stopXhrTracking } = trackXhr(lifeCycle, configuration, tracerStub as Tracer))
-  })
 
-  afterEach(() => {
-    stopXhrTracking()
-    stubXhrManager.reset()
+    registerCleanupTask(() => {
+      stopXhrTracking()
+      mockXhrManager.reset()
+    })
   })
 
   it('should notify on request start', (done) => {

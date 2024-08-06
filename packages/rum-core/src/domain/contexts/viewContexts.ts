@@ -1,8 +1,8 @@
 import type { RelativeTime, ClocksState } from '@datadog/browser-core'
-import { SESSION_TIME_OUT_DELAY, ValueHistory } from '@datadog/browser-core'
+import { SESSION_TIME_OUT_DELAY, createValueHistory } from '@datadog/browser-core'
 import type { LifeCycle } from '../lifeCycle'
 import { LifeCycleEventType } from '../lifeCycle'
-import type { ViewCreatedEvent } from '../view/trackViews'
+import type { ViewCreatedEvent, ViewEvent } from '../view/trackViews'
 
 export const VIEW_CONTEXT_TIME_OUT_DELAY = SESSION_TIME_OUT_DELAY
 
@@ -20,7 +20,7 @@ export interface ViewContexts {
 }
 
 export function startViewContexts(lifeCycle: LifeCycle): ViewContexts {
-  const viewContextHistory = new ValueHistory<ViewContext>(VIEW_CONTEXT_TIME_OUT_DELAY)
+  const viewContextHistory = createValueHistory<ViewContext>({ expireDelay: VIEW_CONTEXT_TIME_OUT_DELAY })
 
   lifeCycle.subscribe(LifeCycleEventType.BEFORE_VIEW_CREATED, (view) => {
     viewContextHistory.add(buildViewContext(view), view.startClocks.relative)
@@ -28,6 +28,13 @@ export function startViewContexts(lifeCycle: LifeCycle): ViewContexts {
 
   lifeCycle.subscribe(LifeCycleEventType.AFTER_VIEW_ENDED, ({ endClocks }) => {
     viewContextHistory.closeActive(endClocks.relative)
+  })
+
+  lifeCycle.subscribe(LifeCycleEventType.VIEW_UPDATED, (viewUpdate: ViewEvent) => {
+    const currentView = viewContextHistory.find(viewUpdate.startClocks.relative)
+    if (currentView && viewUpdate.name) {
+      currentView.name = viewUpdate.name
+    }
   })
 
   lifeCycle.subscribe(LifeCycleEventType.SESSION_RENEWED, () => {

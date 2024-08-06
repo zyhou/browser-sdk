@@ -1,11 +1,21 @@
 import type { Context, Duration, RelativeTime } from '@datadog/browser-core'
-import { PageExitReason, timeStampNow, display, relativeToClocks, relativeNow } from '@datadog/browser-core'
+import {
+  PageExitReason,
+  timeStampNow,
+  display,
+  relativeToClocks,
+  relativeNow,
+  ExperimentalFeature,
+} from '@datadog/browser-core'
+
+import { mockExperimentalFeatures } from '@datadog/browser-core/test'
 import type { TestSetupBuilder } from '../../../test'
-import { createPerformanceEntry, setup } from '../../../test'
+import { createPerformanceEntry, mockPerformanceObserver, setup } from '../../../test'
 import { RumEventType, ViewLoadingType } from '../../rawRumEvent.types'
 import type { RumEvent } from '../../rumEvent.types'
 import { LifeCycleEventType } from '../lifeCycle'
-import { RumPerformanceEntryType } from '../../browser/performanceCollection'
+import type { RumPerformanceEntry } from '../../browser/performanceObservable'
+import { RumPerformanceEntryType } from '../../browser/performanceObservable'
 import type { ViewEvent } from './trackViews'
 import { SESSION_KEEP_ALIVE_INTERVAL, THROTTLE_VIEW_UPDATE_PERIOD, KEEP_TRACKING_AFTER_VIEW_DELAY } from './trackViews'
 import type { ViewTest } from './setupViewTest.specHelper'
@@ -363,8 +373,10 @@ describe('view loading type', () => {
 describe('view metrics', () => {
   let setupBuilder: TestSetupBuilder
   let viewTest: ViewTest
+  let notifyPerformanceEntries: (entries: RumPerformanceEntry[]) => void
 
   beforeEach(() => {
+    ;({ notifyPerformanceEntries } = mockPerformanceObserver())
     setupBuilder = setup()
       .withFakeLocation('/foo')
       .beforeBuild((buildContext) => {
@@ -423,14 +435,14 @@ describe('view metrics', () => {
 
   describe('initial view metrics', () => {
     it('should be updated when notified with a PERFORMANCE_ENTRY_COLLECTED event (throttled)', () => {
-      const { lifeCycle, clock } = setupBuilder.withFakeClock().build()
+      const { clock } = setupBuilder.withFakeClock().build()
       const { getViewUpdateCount, getViewUpdate } = viewTest
       expect(getViewUpdateCount()).toEqual(1)
       expect(getViewUpdate(0).initialViewMetrics).toEqual({})
 
       const navigationEntry = createPerformanceEntry(RumPerformanceEntryType.NAVIGATION)
       clock.tick(navigationEntry.responseStart) // ensure now > responseStart
-      lifeCycle.notify(LifeCycleEventType.PERFORMANCE_ENTRIES_COLLECTED, [navigationEntry])
+      notifyPerformanceEntries([navigationEntry])
 
       expect(getViewUpdateCount()).toEqual(1)
 
@@ -457,8 +469,9 @@ describe('view metrics', () => {
       lifeCycle.notify(LifeCycleEventType.PERFORMANCE_ENTRIES_COLLECTED, [
         createPerformanceEntry(RumPerformanceEntryType.PAINT),
         lcpEntry,
-        createPerformanceEntry(RumPerformanceEntryType.NAVIGATION),
       ])
+      notifyPerformanceEntries([createPerformanceEntry(RumPerformanceEntryType.NAVIGATION)])
+
       clock.tick(THROTTLE_VIEW_UPDATE_PERIOD)
 
       const latestUpdate = getViewUpdate(getViewUpdateCount() - 1)
@@ -477,8 +490,8 @@ describe('view metrics', () => {
       lifeCycle.notify(LifeCycleEventType.PERFORMANCE_ENTRIES_COLLECTED, [
         createPerformanceEntry(RumPerformanceEntryType.PAINT),
         createPerformanceEntry(RumPerformanceEntryType.LARGEST_CONTENTFUL_PAINT),
-        createPerformanceEntry(RumPerformanceEntryType.NAVIGATION),
       ])
+      notifyPerformanceEntries([createPerformanceEntry(RumPerformanceEntryType.NAVIGATION)])
       clock.tick(THROTTLE_VIEW_UPDATE_PERIOD)
 
       const latestUpdate = getViewUpdate(getViewUpdateCount() - 1)
@@ -508,8 +521,8 @@ describe('view metrics', () => {
         lifeCycle.notify(LifeCycleEventType.PERFORMANCE_ENTRIES_COLLECTED, [
           createPerformanceEntry(RumPerformanceEntryType.PAINT),
           createPerformanceEntry(RumPerformanceEntryType.LARGEST_CONTENTFUL_PAINT),
-          createPerformanceEntry(RumPerformanceEntryType.NAVIGATION),
         ])
+        notifyPerformanceEntries([createPerformanceEntry(RumPerformanceEntryType.NAVIGATION)])
 
         clock.tick(THROTTLE_VIEW_UPDATE_PERIOD)
 
@@ -910,4 +923,45 @@ describe('view event count', () => {
       view: viewTest.getLatestViewContext(),
     } as RumEvent & Context
   }
+
+  describe('update view name', () => {
+    let setupBuilder: TestSetupBuilder
+    let viewTest: ViewTest
+
+    beforeEach(() => {
+      setupBuilder = setup().beforeBuild((buildContext) => {
+        viewTest = setupViewTest(buildContext)
+        return viewTest
+      })
+    })
+
+    it('should update an undefined view name if the experimental feature is enabled', () => {
+      mockExperimentalFeatures([ExperimentalFeature.UPDATE_VIEW_NAME])
+      setupBuilder.build()
+      const { getViewUpdate, startView, updateViewName } = viewTest
+
+      startView()
+      updateViewName('foo')
+      expect(getViewUpdate(3).name).toEqual('foo')
+    })
+
+    it('should update a defined view name if the experimental feature is enabled', () => {
+      mockExperimentalFeatures([ExperimentalFeature.UPDATE_VIEW_NAME])
+      setupBuilder.build()
+      const { getViewUpdate, startView, updateViewName } = viewTest
+
+      startView({ name: 'initial view name' })
+      updateViewName('foo')
+      expect(getViewUpdate(3).name).toEqual('foo')
+    })
+
+    it('should not update a defined view name if the experimental feature is not enabled', () => {
+      setupBuilder.build()
+      const { getViewUpdate, startView, updateViewName } = viewTest
+
+      startView({ name: 'initial view name' })
+      updateViewName('foo')
+      expect(getViewUpdate(2).name).toEqual('initial view name')
+    })
+  })
 })

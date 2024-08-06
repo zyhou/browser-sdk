@@ -1,5 +1,5 @@
 import { DefaultPrivacyLevel, isIE } from '@datadog/browser-core'
-import { createNewEvent } from '@datadog/browser-core/test'
+import { createNewEvent, registerCleanupTask } from '@datadog/browser-core/test'
 import type { RumConfiguration } from '@datadog/browser-rum-core'
 import { appendElement } from '../../../../../rum-core/test'
 import { serializeDocument, SerializationContextStatus } from '../serialization'
@@ -9,7 +9,7 @@ import { IncrementalSource, RecordType } from '../../../types'
 import type { InputCallback } from './trackInput'
 import { DEFAULT_CONFIGURATION, DEFAULT_SHADOW_ROOT_CONTROLLER } from './trackers.specHelper'
 import { trackScroll } from './trackScroll'
-import type { Tracker } from './types'
+import type { Tracker } from './tracker.types'
 
 describe('trackScroll', () => {
   let scrollTracker: Tracker
@@ -34,10 +34,10 @@ describe('trackScroll', () => {
       elementsScrollPositions,
     })
     scrollTracker = trackScroll(configuration, scrollCallback, elementsScrollPositions)
-  })
 
-  afterEach(() => {
-    scrollTracker.stop()
+    registerCleanupTask(() => {
+      scrollTracker.stop()
+    })
   })
 
   it('collects scrolls', () => {

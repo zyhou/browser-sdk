@@ -8,11 +8,9 @@ import {
   DefaultPrivacyLevel,
   TraceContextInjection,
   display,
-  isPercentage,
   objectHasValue,
   validateAndBuildConfiguration,
-  isExperimentalFeatureEnabled,
-  ExperimentalFeature,
+  isSampleRate,
 } from '@datadog/browser-core'
 import type { RumEventDomainContext } from '../../domainContext.types'
 import type { RumEvent } from '../../rumEvent.types'
@@ -131,7 +129,7 @@ export interface RumInitConfiguration extends InitConfiguration {
    * notice. Please use only plugins provided by Datadog matching the version of the SDK you are
    * using.
    */
-  plugins?: RumPlugin[] | undefined
+  betaPlugins?: RumPlugin[] | undefined
 }
 
 export type HybridInitConfiguration = Omit<RumInitConfiguration, 'applicationId' | 'clientToken'>
@@ -169,15 +167,9 @@ export function validateAndBuildRumConfiguration(
   }
 
   if (
-    initConfiguration.sessionReplaySampleRate !== undefined &&
-    !isPercentage(initConfiguration.sessionReplaySampleRate)
+    !isSampleRate(initConfiguration.sessionReplaySampleRate, 'Session Replay') ||
+    !isSampleRate(initConfiguration.traceSampleRate, 'Trace')
   ) {
-    display.error('Session Replay Sample Rate should be a number between 0 and 100')
-    return
-  }
-
-  if (initConfiguration.traceSampleRate !== undefined && !isPercentage(initConfiguration.traceSampleRate)) {
-    display.error('Trace Sample Rate should be a number between 0 and 100')
     return
   }
 
@@ -216,14 +208,12 @@ export function validateAndBuildRumConfiguration(
       defaultPrivacyLevel: objectHasValue(DefaultPrivacyLevel, initConfiguration.defaultPrivacyLevel)
         ? initConfiguration.defaultPrivacyLevel
         : DefaultPrivacyLevel.MASK,
-      enablePrivacyForActionName:
-        isExperimentalFeatureEnabled(ExperimentalFeature.ENABLE_PRIVACY_FOR_ACTION_NAME) &&
-        !!initConfiguration.enablePrivacyForActionName,
+      enablePrivacyForActionName: !!initConfiguration.enablePrivacyForActionName,
       customerDataTelemetrySampleRate: 1,
       traceContextInjection: objectHasValue(TraceContextInjection, initConfiguration.traceContextInjection)
         ? initConfiguration.traceContextInjection
         : TraceContextInjection.ALL,
-      plugins: (isExperimentalFeatureEnabled(ExperimentalFeature.PLUGINS) && initConfiguration.plugins) || [],
+      plugins: initConfiguration.betaPlugins || [],
     },
     baseConfiguration
   )
@@ -233,34 +223,33 @@ export function validateAndBuildRumConfiguration(
  * Validates allowedTracingUrls and converts match options to tracing options
  */
 function validateAndBuildTracingOptions(initConfiguration: RumInitConfiguration): TracingOption[] | undefined {
-  if (initConfiguration.allowedTracingUrls !== undefined) {
-    if (!Array.isArray(initConfiguration.allowedTracingUrls)) {
-      display.error('Allowed Tracing URLs should be an array')
-      return
-    }
-    if (initConfiguration.allowedTracingUrls.length !== 0 && initConfiguration.service === undefined) {
-      display.error('Service needs to be configured when tracing is enabled')
-      return
-    }
-    // Convert from (MatchOption | TracingOption) to TracingOption, remove unknown properties
-    const tracingOptions: TracingOption[] = []
-    initConfiguration.allowedTracingUrls.forEach((option) => {
-      if (isMatchOption(option)) {
-        tracingOptions.push({ match: option, propagatorTypes: DEFAULT_PROPAGATOR_TYPES })
-      } else if (isTracingOption(option)) {
-        tracingOptions.push(option)
-      } else {
-        display.warn(
-          'Allowed Tracing Urls parameters should be a string, RegExp, function, or an object. Ignoring parameter',
-          option
-        )
-      }
-    })
-
-    return tracingOptions
+  if (initConfiguration.allowedTracingUrls === undefined) {
+    return []
   }
+  if (!Array.isArray(initConfiguration.allowedTracingUrls)) {
+    display.error('Allowed Tracing URLs should be an array')
+    return
+  }
+  if (initConfiguration.allowedTracingUrls.length !== 0 && initConfiguration.service === undefined) {
+    display.error('Service needs to be configured when tracing is enabled')
+    return
+  }
+  // Convert from (MatchOption | TracingOption) to TracingOption, remove unknown properties
+  const tracingOptions: TracingOption[] = []
+  initConfiguration.allowedTracingUrls.forEach((option) => {
+    if (isMatchOption(option)) {
+      tracingOptions.push({ match: option, propagatorTypes: DEFAULT_PROPAGATOR_TYPES })
+    } else if (isTracingOption(option)) {
+      tracingOptions.push(option)
+    } else {
+      display.warn(
+        'Allowed Tracing Urls parameters should be a string, RegExp, function, or an object. Ignoring parameter',
+        option
+      )
+    }
+  })
 
-  return []
+  return tracingOptions
 }
 
 /**
@@ -306,7 +295,7 @@ export function serializeRumConfiguration(configuration: RumInitConfiguration) {
       track_user_interactions: configuration.trackUserInteractions,
       track_resources: configuration.trackResources,
       track_long_task: configuration.trackLongTasks,
-      plugins: configuration.plugins?.map((plugin) =>
+      plugins: configuration.betaPlugins?.map((plugin) =>
         assign({ name: plugin.name }, plugin.getConfigurationTelemetry?.())
       ),
     },

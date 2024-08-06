@@ -1,10 +1,6 @@
 import type { InitConfiguration } from '@datadog/browser-core'
-import { DefaultPrivacyLevel, display, ExperimentalFeature, TraceContextInjection } from '@datadog/browser-core'
-import {
-  EXHAUSTIVE_INIT_CONFIGURATION,
-  mockExperimentalFeatures,
-  SERIALIZED_EXHAUSTIVE_INIT_CONFIGURATION,
-} from '@datadog/browser-core/test'
+import { DefaultPrivacyLevel, display, TraceContextInjection } from '@datadog/browser-core'
+import { EXHAUSTIVE_INIT_CONFIGURATION, SERIALIZED_EXHAUSTIVE_INIT_CONFIGURATION } from '@datadog/browser-core/test'
 import type {
   ExtractTelemetryConfiguration,
   CamelToSnakeCase,
@@ -338,15 +334,8 @@ describe('validateAndBuildRumConfiguration', () => {
     it('defaults to false', () => {
       expect(validateAndBuildRumConfiguration(DEFAULT_INIT_CONFIGURATION)!.enablePrivacyForActionName).toBeFalse()
     })
-    it('is false when the feature is not enabled and the option is true', () => {
-      expect(
-        validateAndBuildRumConfiguration({ ...DEFAULT_INIT_CONFIGURATION, enablePrivacyForActionName: true })!
-          .enablePrivacyForActionName
-      ).toBeFalse()
-    })
 
-    it('is only true when the feature is enabled and the option is true', () => {
-      mockExperimentalFeatures([ExperimentalFeature.ENABLE_PRIVACY_FOR_ACTION_NAME])
+    it('is true when the option is true', () => {
       expect(validateAndBuildRumConfiguration(DEFAULT_INIT_CONFIGURATION)!.enablePrivacyForActionName).toBeFalse()
       expect(
         validateAndBuildRumConfiguration({ ...DEFAULT_INIT_CONFIGURATION, enablePrivacyForActionName: true })!
@@ -453,28 +442,15 @@ describe('validateAndBuildRumConfiguration', () => {
   })
 
   describe('plugins', () => {
-    it('with `plugins` enabled: should be set in the configuration', () => {
-      mockExperimentalFeatures([ExperimentalFeature.PLUGINS])
-
+    it('should be set in the configuration', () => {
       const plugin = {
         name: 'foo',
       }
       const configuration = validateAndBuildRumConfiguration({
         ...DEFAULT_INIT_CONFIGURATION,
-        plugins: [plugin],
+        betaPlugins: [plugin],
       })
       expect(configuration!.plugins).toEqual([plugin])
-    })
-
-    it('without `plugins` enabled: should not be set in the configuration', () => {
-      const plugin = {
-        name: 'foo',
-      }
-      const configuration = validateAndBuildRumConfiguration({
-        ...DEFAULT_INIT_CONFIGURATION,
-        plugins: [plugin],
-      })
-      expect(configuration!.plugins).toEqual([])
     })
   })
 })
@@ -502,7 +478,7 @@ describe('serializeRumConfiguration', () => {
       trackResources: true,
       trackLongTasks: true,
       remoteConfigurationId: '123',
-      plugins: [{ name: 'foo', getConfigurationTelemetry: () => ({ bar: true }) }],
+      betaPlugins: [{ name: 'foo', getConfigurationTelemetry: () => ({ bar: true }) }],
     }
 
     type MapRumInitConfigurationKey<Key extends string> = Key extends keyof InitConfiguration
@@ -513,7 +489,9 @@ describe('serializeRumConfiguration', () => {
           ? 'track_long_task' // oops
           : Key extends 'applicationId' | 'subdomain' | 'remoteConfigurationId'
             ? never
-            : CamelToSnakeCase<Key>
+            : Key extends 'betaPlugins' // renamed during public beta
+              ? 'plugins'
+              : CamelToSnakeCase<Key>
 
     // By specifying the type here, we can ensure that serializeConfiguration is returning an
     // object containing all expected properties.

@@ -62,12 +62,13 @@ export function getClassList(element: Element): DOMTokenList | string[] {
     return element.classList
   }
 
-  const classes = element.getAttribute('class')?.trim()
+  const classes = (element.getAttribute('class') || '').trim()
   return classes ? classes.split(/\s+/) : []
 }
 
 // ie11 supports WeakMap but not WeakSet
 const PLACEHOLDER = 1
+// eslint-disable-next-line no-restricted-syntax
 export class WeakSet<T extends object> {
   private map = new WeakMap<T, typeof PLACEHOLDER>()
 

@@ -11,7 +11,7 @@ import {
   toServerDuration,
 } from '@datadog/browser-core'
 
-import type { RumPerformanceResourceTiming } from '../../browser/performanceCollection'
+import type { RumPerformanceResourceTiming } from '../../browser/performanceObservable'
 
 import type { PerformanceResourceDetailsElement } from '../../rawRumEvent.types'
 import type { RumConfiguration } from '../configuration'

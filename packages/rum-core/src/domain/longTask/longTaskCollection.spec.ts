@@ -1,7 +1,7 @@
 import type { RelativeTime, ServerDuration } from '@datadog/browser-core'
 import type { RumSessionManagerMock, TestSetupBuilder } from '../../../test'
-import { createPerformanceEntry, createRumSessionManagerMock, setup } from '../../../test'
-import { RumPerformanceEntryType, type RumPerformanceEntry } from '../../browser/performanceCollection'
+import { createPerformanceEntry, createRumSessionManagerMock, mockPerformanceObserver, setup } from '../../../test'
+import { RumPerformanceEntryType } from '../../browser/performanceObservable'
 import { RumEventType } from '../../rawRumEvent.types'
 import { LifeCycleEventType } from '../lifeCycle'
 import { startLongTaskCollection } from './longTaskCollection'
@@ -22,13 +22,14 @@ describe('long task collection', () => {
   })
 
   it('should only listen to long task performance entry', () => {
+    const { notifyPerformanceEntries } = mockPerformanceObserver()
     const { lifeCycle, rawRumEvents } = setupBuilder.build()
+
+    notifyPerformanceEntries([createPerformanceEntry(RumPerformanceEntryType.NAVIGATION)])
     lifeCycle.notify(LifeCycleEventType.PERFORMANCE_ENTRIES_COLLECTED, [
       createPerformanceEntry(RumPerformanceEntryType.LONG_TASK),
-      createPerformanceEntry(RumPerformanceEntryType.NAVIGATION),
-      createPerformanceEntry(RumPerformanceEntryType.RESOURCE),
       createPerformanceEntry(RumPerformanceEntryType.PAINT),
-    ] as RumPerformanceEntry[])
+    ])
 
     expect(rawRumEvents.length).toBe(1)
   })

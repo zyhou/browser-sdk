@@ -1,28 +1,63 @@
-import { setup } from '../../test'
-import type { RumConfiguration } from '../domain/configuration'
-import { retrieveInitialDocumentResourceTiming, startPerformanceCollection } from './performanceCollection'
+import type { TestSetupBuilder } from '../../test'
+import { createPerformanceEntry, mockPerformanceObserver, setup } from '../../test'
+import { LifeCycleEventType } from '../domain/lifeCycle'
+import { startPerformanceCollection } from './performanceCollection'
+import { RumPerformanceEntryType } from './performanceObservable'
 
-describe('rum initial document resource', () => {
-  let configuration: RumConfiguration
+describe('startPerformanceCollection', () => {
+  let entryCollectedCallback: jasmine.Spy
+  let setupBuilder: TestSetupBuilder
 
   beforeEach(() => {
-    configuration = {} as RumConfiguration
-    setup().beforeBuild(({ lifeCycle, configuration }) => {
-      startPerformanceCollection(lifeCycle, configuration)
+    entryCollectedCallback = jasmine.createSpy()
+
+    setupBuilder = setup().beforeBuild(({ lifeCycle, configuration }) => {
+      const { stop } = startPerformanceCollection(lifeCycle, configuration)
+      const subscription = lifeCycle.subscribe(LifeCycleEventType.PERFORMANCE_ENTRIES_COLLECTED, entryCollectedCallback)
+      return {
+        stop() {
+          stop()
+          subscription.unsubscribe()
+        },
+      }
+    })
+  })
+  ;[
+    RumPerformanceEntryType.LONG_TASK,
+    RumPerformanceEntryType.PAINT,
+    RumPerformanceEntryType.LARGEST_CONTENTFUL_PAINT,
+    RumPerformanceEntryType.FIRST_INPUT,
+    RumPerformanceEntryType.LAYOUT_SHIFT,
+    RumPerformanceEntryType.EVENT,
+  ].forEach((entryType) => {
+    it(`should notify ${entryType}`, () => {
+      const { notifyPerformanceEntries } = mockPerformanceObserver()
+      setupBuilder.build()
+
+      notifyPerformanceEntries([createPerformanceEntry(entryType)])
+
+      expect(entryCollectedCallback).toHaveBeenCalledWith([jasmine.objectContaining({ entryType })])
+    })
+  })
+  ;[(RumPerformanceEntryType.NAVIGATION, RumPerformanceEntryType.RESOURCE)].forEach((entryType) => {
+    it(`should not notify ${entryType} timings`, () => {
+      const { notifyPerformanceEntries } = mockPerformanceObserver()
+      setupBuilder.build()
+
+      notifyPerformanceEntries([createPerformanceEntry(RumPerformanceEntryType.RESOURCE)])
+
+      expect(entryCollectedCallback).not.toHaveBeenCalled()
     })
   })
 
-  it('creates a resource timing for the initial document', (done) => {
-    retrieveInitialDocumentResourceTiming(configuration, (timing) => {
-      expect(timing.entryType).toBe('resource')
-      expect(timing.duration).toBeGreaterThan(0)
-
-      // generate a performance entry like structure
-      const toJsonTiming = timing.toJSON()
-      expect(toJsonTiming.entryType).toEqual(timing.entryType)
-      expect(toJsonTiming.duration).toEqual(timing.duration)
-      expect((toJsonTiming as any).toJSON).toBeUndefined()
-      done()
+  it('should handle exceptions coming from performance observer .observe()', () => {
+    const { notifyPerformanceEntries } = mockPerformanceObserver({
+      emulateAllEntryTypesUnsupported: true,
     })
+    setupBuilder.build()
+
+    expect(() => notifyPerformanceEntries([createPerformanceEntry(RumPerformanceEntryType.RESOURCE)])).not.toThrow()
+
+    expect(entryCollectedCallback).not.toHaveBeenCalled()
   })
 })

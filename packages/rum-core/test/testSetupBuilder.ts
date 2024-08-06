@@ -39,7 +39,6 @@ export interface TestSetupBuilder {
 
   clock: Clock | undefined
   domMutationObservable: Observable<void>
-
   build: () => TestIO
 }
 
@@ -154,8 +153,8 @@ export function setup(): TestSetupBuilder {
       fakeLocation = buildLocation(initialUrl)
       return setupBuilder
     },
-    withSessionManager(sessionManagerStub: RumSessionManager) {
-      sessionManager = sessionManagerStub
+    withSessionManager(stub: RumSessionManager) {
+      sessionManager = stub
       return setupBuilder
     },
     withConfiguration(overrides: Partial<RumConfiguration>) {
@@ -225,13 +224,15 @@ export function setup(): TestSetupBuilder {
   registerCleanupTask(() => {
     cleanupTasks.forEach((task) => task())
     // perform these steps at the end to generate correct events in cleanup and validate them
-    clock?.cleanup()
+    if (clock) {
+      clock.cleanup()
+    }
     rawRumEventsCollected.unsubscribe()
   })
   return setupBuilder
 }
 
-function validateRumEventFormat(rawRumEvent: RawRumEvent) {
+export function validateRumEventFormat(rawRumEvent: RawRumEvent) {
   const fakeId = '00000000-aaaa-0000-aaaa-000000000000'
   const fakeContext: RumContext = {
     _dd: {

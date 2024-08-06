@@ -3,7 +3,7 @@ import type { RumInitConfiguration } from '@datadog/browser-rum-core'
 import { DefaultPrivacyLevel } from '@datadog/browser-rum'
 import { getRunId } from '../../../envUtils'
 import { deleteAllCookies, getBrowserName, withBrowserLogs } from '../helpers/browser'
-import { APPLICATION_ID, CLIENT_TOKEN } from '../helpers/constants'
+import { APPLICATION_ID, CLIENT_TOKEN } from '../helpers/configuration'
 import { validateRumFormat } from '../helpers/validation'
 import { IntakeRegistry } from './intakeRegistry'
 import { flushEvents } from './flushEvents'
@@ -25,6 +25,7 @@ const DEFAULT_RUM_CONFIGURATION = {
   telemetrySampleRate: 100,
   telemetryConfigurationSampleRate: 100,
   enableExperimentalFeatures: [],
+  allowUntrustedEvents: true,
 }
 
 const DEFAULT_LOGS_CONFIGURATION = {

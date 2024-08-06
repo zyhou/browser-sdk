@@ -1,4 +1,4 @@
-import type { DeflateWorker, RelativeTime, TimeStamp, TrackingConsentState } from '@datadog/browser-core'
+import type { DeflateWorker, Duration, RelativeTime, TimeStamp, TrackingConsentState } from '@datadog/browser-core'
 import {
   display,
   getTimeStamp,
@@ -11,11 +11,13 @@ import {
   addExperimentalFeatures,
   ExperimentalFeature,
   resetExperimentalFeatures,
+  resetFetchObservable,
+  isIE,
 } from '@datadog/browser-core'
 import type { Clock } from '@datadog/browser-core/test'
 import {
   cleanupSyntheticsWorkerValues,
-  initEventBridgeStub,
+  mockEventBridge,
   interceptRequests,
   mockClock,
   mockExperimentalFeatures,
@@ -24,7 +26,7 @@ import {
 import type { HybridInitConfiguration, RumConfiguration, RumInitConfiguration } from '../domain/configuration'
 import type { CommonContext } from '../domain/contexts/commonContext'
 import type { ViewOptions } from '../domain/view/trackViews'
-import { ActionType } from '../rawRumEvent.types'
+import { ActionType, VitalType } from '../rawRumEvent.types'
 import type { CustomAction } from '../domain/action/actionCollection'
 import type { RumPlugin } from '../domain/plugins'
 import type { RumPublicApi, Strategy } from './rumPublicApi'
@@ -51,6 +53,10 @@ describe('preStartRum', () => {
   beforeEach(() => {
     doStartRumSpy = jasmine.createSpy()
     getCommonContextSpy = jasmine.createSpy()
+  })
+
+  afterEach(() => {
+    resetFetchObservable()
   })
 
   describe('configuration validation', () => {
@@ -112,21 +118,21 @@ describe('preStartRum', () => {
 
     describe('if event bridge present', () => {
       it('init should accept empty application id and client token', () => {
-        initEventBridgeStub()
+        mockEventBridge()
         const hybridInitConfiguration: HybridInitConfiguration = {}
         strategy.init(hybridInitConfiguration as RumInitConfiguration, PUBLIC_API)
         expect(display.error).not.toHaveBeenCalled()
       })
 
       it('should force session sample rate to 100', () => {
-        initEventBridgeStub()
+        mockEventBridge()
         const invalidConfiguration: HybridInitConfiguration = { sessionSampleRate: 50 }
         strategy.init(invalidConfiguration as RumInitConfiguration, PUBLIC_API)
         expect(strategy.initConfiguration?.sessionSampleRate).toEqual(100)
       })
 
       it('should set the default privacy level received from the bridge if the not provided in the init configuration', () => {
-        initEventBridgeStub({ privacyLevel: DefaultPrivacyLevel.ALLOW })
+        mockEventBridge({ privacyLevel: DefaultPrivacyLevel.ALLOW })
         const hybridInitConfiguration: HybridInitConfiguration = {}
         strategy.init(hybridInitConfiguration as RumInitConfiguration, PUBLIC_API)
         expect((strategy.initConfiguration as RumInitConfiguration)?.defaultPrivacyLevel).toEqual(
@@ -135,7 +141,7 @@ describe('preStartRum', () => {
       })
 
       it('should set the default privacy level from the init configuration if provided', () => {
-        initEventBridgeStub({ privacyLevel: DefaultPrivacyLevel.ALLOW })
+        mockEventBridge({ privacyLevel: DefaultPrivacyLevel.ALLOW })
         const hybridInitConfiguration: HybridInitConfiguration = { defaultPrivacyLevel: DefaultPrivacyLevel.MASK }
         strategy.init(hybridInitConfiguration as RumInitConfiguration, PUBLIC_API)
         expect((strategy.initConfiguration as RumInitConfiguration)?.defaultPrivacyLevel).toEqual(
@@ -144,7 +150,7 @@ describe('preStartRum', () => {
       })
 
       it('should set the default privacy level to "mask" if not provided in init configuration nor the bridge', () => {
-        initEventBridgeStub({ privacyLevel: undefined })
+        mockEventBridge({ privacyLevel: undefined })
         const hybridInitConfiguration: HybridInitConfiguration = {}
         strategy.init(hybridInitConfiguration as RumInitConfiguration, PUBLIC_API)
         expect((strategy.initConfiguration as RumInitConfiguration)?.defaultPrivacyLevel).toEqual(
@@ -153,7 +159,7 @@ describe('preStartRum', () => {
       })
 
       it('should initialize even if session cannot be handled', () => {
-        initEventBridgeStub()
+        mockEventBridge()
         spyOnProperty(document, 'cookie', 'get').and.returnValue('')
         strategy.init(DEFAULT_INIT_CONFIGURATION, PUBLIC_API)
         expect(doStartRumSpy).toHaveBeenCalled()
@@ -267,7 +273,7 @@ describe('preStartRum', () => {
         })
 
         it('if message bridge is present, does not create a deflate worker instance', () => {
-          initEventBridgeStub()
+          mockEventBridge()
 
           strategy.init(
             {
@@ -288,13 +294,16 @@ describe('preStartRum', () => {
       let strategy: Strategy
       let startViewSpy: jasmine.Spy<StartRumResult['startView']>
       let addTimingSpy: jasmine.Spy<StartRumResult['addTiming']>
+      let updateViewNameSpy: jasmine.Spy<StartRumResult['updateViewName']>
 
       beforeEach(() => {
         startViewSpy = jasmine.createSpy('startView')
         addTimingSpy = jasmine.createSpy('addTiming')
+        updateViewNameSpy = jasmine.createSpy('updateViewName')
         doStartRumSpy.and.returnValue({
           startView: startViewSpy,
           addTiming: addTimingSpy,
+          updateViewName: updateViewNameSpy,
         } as unknown as StartRumResult)
         strategy = createPreStartStrategy({}, getCommonContextSpy, createTrackingConsentState(), doStartRumSpy)
       })
@@ -434,7 +443,7 @@ describe('preStartRum', () => {
         it('should start with the remote configuration when a remoteConfigurationId is provided', (done) => {
           mockExperimentalFeatures([ExperimentalFeature.REMOTE_CONFIGURATION])
 
-          interceptor.withStubXhr((xhr) => {
+          interceptor.withMockXhr((xhr) => {
             xhr.complete(200, '{"sessionSampleRate":50}')
 
             expect(doStartRumSpy.calls.mostRecent().args[0].sessionSampleRate).toEqual(50)
@@ -468,14 +477,10 @@ describe('preStartRum', () => {
     })
 
     describe('plugins', () => {
-      beforeEach(() => {
-        mockExperimentalFeatures([ExperimentalFeature.PLUGINS])
-      })
-
       it('calls the onInit method on provided plugins', () => {
         const plugin = { name: 'a', onInit: jasmine.createSpy() }
         const strategy = createPreStartStrategy({}, getCommonContextSpy, createTrackingConsentState(), doStartRumSpy)
-        const initConfiguration = { ...DEFAULT_INIT_CONFIGURATION, plugins: [plugin] }
+        const initConfiguration: RumInitConfiguration = { ...DEFAULT_INIT_CONFIGURATION, betaPlugins: [plugin] }
         strategy.init(initConfiguration, PUBLIC_API)
 
         expect(plugin.onInit).toHaveBeenCalledWith({
@@ -495,7 +500,7 @@ describe('preStartRum', () => {
         const strategy = createPreStartStrategy({}, getCommonContextSpy, createTrackingConsentState(), doStartRumSpy)
         strategy.init(
           {
-            plugins: [plugin],
+            betaPlugins: [plugin],
           } as RumInitConfiguration,
           PUBLIC_API
         )
@@ -570,7 +575,7 @@ describe('preStartRum', () => {
 
     it('returns the initConfiguration with the remote configuration when a remoteConfigurationId is provided', (done) => {
       addExperimentalFeatures([ExperimentalFeature.REMOTE_CONFIGURATION])
-      interceptor.withStubXhr((xhr) => {
+      interceptor.withMockXhr((xhr) => {
         xhr.complete(200, '{"sessionSampleRate":50}')
 
         expect(strategy.initConfiguration?.sessionSampleRate).toEqual(50)
@@ -646,6 +651,16 @@ describe('preStartRum', () => {
       expect(addTimingSpy).toHaveBeenCalledOnceWith(name, time)
     })
 
+    it('updateViewName', () => {
+      const updateViewNameSpy = jasmine.createSpy()
+      doStartRumSpy.and.returnValue({ updateViewName: updateViewNameSpy } as unknown as StartRumResult)
+
+      const name = 'foo'
+      strategy.updateViewName(name)
+      strategy.init(DEFAULT_INIT_CONFIGURATION, PUBLIC_API)
+      expect(updateViewNameSpy).toHaveBeenCalledOnceWith(name)
+    })
+
     it('addFeatureFlagEvaluation', () => {
       const addFeatureFlagEvaluationSpy = jasmine.createSpy()
       doStartRumSpy.and.returnValue({
@@ -660,27 +675,30 @@ describe('preStartRum', () => {
     })
 
     it('startDurationVital', () => {
-      const startDurationVitalSpy = jasmine.createSpy()
+      const addDurationVitalSpy = jasmine.createSpy()
       doStartRumSpy.and.returnValue({
-        startDurationVital: startDurationVitalSpy,
+        addDurationVital: addDurationVitalSpy,
       } as unknown as StartRumResult)
 
-      const vitalStart = { name: 'timing', startClocks: clocksNow() }
-      strategy.startDurationVital(vitalStart)
+      const vitalStart = { name: 'timing' }
+
+      const vital = strategy.startDurationVital(vitalStart)
+      vital.stop()
+
       strategy.init(DEFAULT_INIT_CONFIGURATION, PUBLIC_API)
-      expect(startDurationVitalSpy).toHaveBeenCalledOnceWith(vitalStart)
+      expect(addDurationVitalSpy).toHaveBeenCalled()
     })
 
-    it('stopDurationVital', () => {
-      const stopDurationVitalSpy = jasmine.createSpy()
+    it('addDurationVital', () => {
+      const addDurationVitalSpy = jasmine.createSpy()
       doStartRumSpy.and.returnValue({
-        stopDurationVital: stopDurationVitalSpy,
+        addDurationVital: addDurationVitalSpy,
       } as unknown as StartRumResult)
 
-      const vitalStop = { name: 'timing', stopClocks: clocksNow() }
-      strategy.stopDurationVital(vitalStop)
+      const vitalAdd = { name: 'timing', type: VitalType.DURATION, startClocks: clocksNow(), duration: 100 as Duration }
+      strategy.addDurationVital(vitalAdd)
       strategy.init(DEFAULT_INIT_CONFIGURATION, PUBLIC_API)
-      expect(stopDurationVitalSpy).toHaveBeenCalledOnceWith(vitalStop)
+      expect(addDurationVitalSpy).toHaveBeenCalledOnceWith(vitalAdd)
     })
   })
 
@@ -691,6 +709,28 @@ describe('preStartRum', () => {
     beforeEach(() => {
       trackingConsentState = createTrackingConsentState()
       strategy = createPreStartStrategy({}, getCommonContextSpy, trackingConsentState, doStartRumSpy)
+    })
+
+    describe('basic methods instrumentation', () => {
+      beforeEach(() => {
+        if (isIE()) {
+          pending('No support for IE')
+        }
+      })
+
+      it('should instrument fetch even if tracking consent is not granted', () => {
+        const originalFetch = window.fetch
+
+        strategy.init(
+          {
+            ...DEFAULT_INIT_CONFIGURATION,
+            trackingConsent: TrackingConsent.NOT_GRANTED,
+          },
+          PUBLIC_API
+        )
+
+        expect(window.fetch).not.toBe(originalFetch)
+      })
     })
 
     it('does not start rum if tracking consent is not granted at init', () => {

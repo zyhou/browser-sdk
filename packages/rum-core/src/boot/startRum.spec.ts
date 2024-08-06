@@ -12,10 +12,16 @@ import {
   createTrackingConsentState,
   TrackingConsent,
 } from '@datadog/browser-core'
-import { createNewEvent, interceptRequests, initEventBridgeStub } from '@datadog/browser-core/test'
+import { createNewEvent, interceptRequests, mockEventBridge } from '@datadog/browser-core/test'
 import type { RumSessionManagerMock, TestSetupBuilder } from '../../test'
-import { createPerformanceEntry, createRumSessionManagerMock, noopRecorderApi, setup } from '../../test'
-import { RumPerformanceEntryType } from '../browser/performanceCollection'
+import {
+  createPerformanceEntry,
+  createRumSessionManagerMock,
+  mockPerformanceObserver,
+  noopRecorderApi,
+  setup,
+} from '../../test'
+import { RumPerformanceEntryType } from '../browser/performanceObservable'
 import type { LifeCycle } from '../domain/lifeCycle'
 import { LifeCycleEventType } from '../domain/lifeCycle'
 import { SESSION_KEEP_ALIVE_INTERVAL, THROTTLE_VIEW_UPDATE_PERIOD } from '../domain/view/trackViews'
@@ -53,6 +59,7 @@ function startRumStub(
     configuration,
     location,
     sessionManager,
+    pageStateHistory,
     locationChangeObservable,
     domMutationObservable,
     () => ({
@@ -285,10 +292,8 @@ describe('rum events url', () => {
   })
 
   it('should keep the same URL when updating an ended view', () => {
-    const { lifeCycle, clock, changeLocation } = setupBuilder
-      .withFakeClock()
-      .withFakeLocation('http://foo.com/')
-      .build()
+    const { notifyPerformanceEntries } = mockPerformanceObserver()
+    const { clock, changeLocation } = setupBuilder.withFakeClock().withFakeLocation('http://foo.com/').build()
 
     clock.tick(VIEW_DURATION)
 
@@ -296,9 +301,7 @@ describe('rum events url', () => {
 
     serverRumEvents.length = 0
 
-    lifeCycle.notify(LifeCycleEventType.PERFORMANCE_ENTRIES_COLLECTED, [
-      createPerformanceEntry(RumPerformanceEntryType.NAVIGATION),
-    ])
+    notifyPerformanceEntries([createPerformanceEntry(RumPerformanceEntryType.NAVIGATION)])
     clock.tick(THROTTLE_VIEW_UPDATE_PERIOD)
 
     expect(serverRumEvents.length).toEqual(1)
@@ -354,8 +357,8 @@ describe('view events', () => {
   })
 
   it('sends a view update on page unload when bridge is present', () => {
-    const eventBridgeStub = initEventBridgeStub()
-    const sendSpy = spyOn(eventBridgeStub, 'send')
+    const eventBridge = mockEventBridge()
+    const sendSpy = spyOn(eventBridge, 'send')
 
     const VIEW_DURATION = ONE_SECOND as Duration
 

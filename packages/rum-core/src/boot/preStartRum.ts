@@ -1,5 +1,5 @@
 import {
-  BoundedBuffer,
+  createBoundedBuffer,
   display,
   canUseEventBridge,
   displayAlreadyInitializedError,
@@ -13,6 +13,7 @@ import {
   isExperimentalFeatureEnabled,
   initFeatureFlags,
   addTelemetryConfiguration,
+  initFetchObservable,
 } from '@datadog/browser-core'
 import type { TrackingConsentState, DeflateWorker } from '@datadog/browser-core'
 import {
@@ -22,6 +23,8 @@ import {
 } from '../domain/configuration'
 import type { CommonContext } from '../domain/contexts/commonContext'
 import type { ViewOptions } from '../domain/view/trackViews'
+import type { DurationVital } from '../domain/vital/vitalCollection'
+import { createVitalInstance } from '../domain/vital/vitalCollection'
 import { fetchAndApplyRemoteConfiguration, serializeRumConfiguration } from '../domain/configuration'
 import { callPluginsMethod } from '../domain/plugins'
 import type { RumPublicApiOptions, Strategy } from './rumPublicApi'
@@ -37,7 +40,7 @@ export function createPreStartStrategy(
     initialViewOptions?: ViewOptions
   ) => StartRumResult
 ): Strategy {
-  const bufferApiCalls = new BoundedBuffer<StartRumResult>()
+  const bufferApiCalls = createBoundedBuffer<StartRumResult>()
   let firstStartViewCall:
     | { options: ViewOptions | undefined; callback: (startRumResult: StartRumResult) => void }
     | undefined
@@ -117,8 +120,18 @@ export function createPreStartStrategy(
     }
 
     cachedConfiguration = configuration
+    // Instrumuent fetch to track network requests
+    // This is needed in case the consent is not granted and some cutsomer
+    // library (Apollo Client) is storing uninstrumented fetch to be used later
+    // The subscrption is needed so that the instrumentation process is completed
+    initFetchObservable().subscribe(noop)
+
     trackingConsentState.tryToInit(configuration.trackingConsent)
     tryStartRum()
+  }
+
+  const addDurationVital = (vital: DurationVital) => {
+    bufferApiCalls.add((startRumResult) => startRumResult.addDurationVital(vital))
   }
 
   return {
@@ -141,9 +154,7 @@ export function createPreStartStrategy(
         return
       }
 
-      if (isExperimentalFeatureEnabled(ExperimentalFeature.PLUGINS)) {
-        callPluginsMethod(initConfiguration.plugins, 'onInit', { initConfiguration, publicApi })
-      }
+      callPluginsMethod(initConfiguration.betaPlugins, 'onInit', { initConfiguration, publicApi })
 
       if (
         initConfiguration.remoteConfigurationId &&
@@ -179,6 +190,10 @@ export function createPreStartStrategy(
       }
     },
 
+    updateViewName(name) {
+      bufferApiCalls.add((startRumResult) => startRumResult.updateViewName(name))
+    },
+
     addAction(action, commonContext = getCommonContext()) {
       bufferApiCalls.add((startRumResult) => startRumResult.addAction(action, commonContext))
     },
@@ -192,12 +207,10 @@ export function createPreStartStrategy(
     },
 
     startDurationVital(vitalStart) {
-      bufferApiCalls.add((startRumResult) => startRumResult.startDurationVital(vitalStart))
+      return createVitalInstance((vital) => addDurationVital(vital), vitalStart)
     },
 
-    stopDurationVital(vitalStart) {
-      bufferApiCalls.add((startRumResult) => startRumResult.stopDurationVital(vitalStart))
-    },
+    addDurationVital,
   }
 }
 

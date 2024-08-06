@@ -41,6 +41,7 @@ import type { RumConfiguration } from '../domain/configuration'
 import type { ViewOptions } from '../domain/view/trackViews'
 import { startFeatureFlagContexts } from '../domain/contexts/featureFlagContext'
 import { startCustomerDataTelemetry } from '../domain/startCustomerDataTelemetry'
+import type { PageStateHistory } from '../domain/contexts/pageStateHistory'
 import { startPageStateHistory } from '../domain/contexts/pageStateHistory'
 import type { CommonContext } from '../domain/contexts/commonContext'
 import { startDisplayContext } from '../domain/contexts/displayContext'
@@ -121,10 +122,9 @@ export function startRum(
 
   const domMutationObservable = createDOMMutationObservable()
   const locationChangeObservable = createLocationChangeObservable(configuration, location)
-
+  const pageStateHistory = startPageStateHistory(configuration)
   const {
     viewContexts,
-    pageStateHistory,
     urlContexts,
     actionContexts,
     addAction,
@@ -134,6 +134,7 @@ export function startRum(
     configuration,
     location,
     session,
+    pageStateHistory,
     locationChangeObservable,
     domMutationObservable,
     getCommonContext,
@@ -143,12 +144,10 @@ export function startRum(
 
   drainPreStartTelemetry()
 
-  startLongTaskCollection(lifeCycle, configuration)
-  startResourceCollection(lifeCycle, configuration, pageStateHistory)
-
   const {
     addTiming,
     startView,
+    updateViewName,
     stop: stopViewCollection,
   } = startViewCollection(
     lifeCycle,
@@ -162,6 +161,11 @@ export function startRum(
     initialViewOptions
   )
   cleanupTasks.push(stopViewCollection)
+
+  const { stop: stopResourceCollection } = startResourceCollection(lifeCycle, configuration, pageStateHistory)
+  cleanupTasks.push(stopResourceCollection)
+
+  startLongTaskCollection(lifeCycle, configuration)
 
   const { addError } = startErrorCollection(lifeCycle, configuration, pageStateHistory, featureFlagContexts)
 
@@ -184,13 +188,14 @@ export function startRum(
     addTiming,
     addFeatureFlagEvaluation: featureFlagContexts.addFeatureFlagEvaluation,
     startView,
+    updateViewName,
     lifeCycle,
     viewContexts,
     session,
     stopSession: () => session.expire(),
     getInternalContext: internalContext.get,
     startDurationVital: vitalCollection.startDurationVital,
-    stopDurationVital: vitalCollection.stopDurationVital,
+    addDurationVital: vitalCollection.addDurationVital,
     stop: () => {
       cleanupTasks.forEach((task) => task())
     },
@@ -211,6 +216,7 @@ export function startRumEventCollection(
   configuration: RumConfiguration,
   location: Location,
   sessionManager: RumSessionManager,
+  pageStateHistory: PageStateHistory,
   locationChangeObservable: Observable<LocationChange>,
   domMutationObservable: Observable<void>,
   getCommonContext: () => CommonContext,
@@ -218,8 +224,6 @@ export function startRumEventCollection(
 ) {
   const viewContexts = startViewContexts(lifeCycle)
   const urlContexts = startUrlContexts(lifeCycle, locationChangeObservable, location)
-
-  const pageStateHistory = startPageStateHistory(configuration)
 
   const { addAction, actionContexts } = startActionCollection(
     lifeCycle,
@@ -253,7 +257,6 @@ export function startRumEventCollection(
     stop: () => {
       ciVisibilityContext.stop()
       displayContext.stop()
-      pageStateHistory.stop()
       urlContexts.stop()
       viewContexts.stop()
       pageStateHistory.stop()

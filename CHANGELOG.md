@@ -13,8 +13,85 @@
 > 📝 - Documentation.
 >
 > ⚗ - Experimental.
+>
+> See [Gitmoji](https://gitmoji.dev/) for a guide on the emojis used.
 
 ---
+
+## v5.23.3
+
+**Internal Changes:**
+
+- 👷 disable test-performance job ([#2904](https://github.com/DataDog/browser-sdk/pull/2904))
+
+## v5.23.2
+
+**Public Changes:**
+
+- 🐛 fix unexpected exception when no entry type is supported in PerformanceObserver ([#2899](https://github.com/DataDog/browser-sdk/pull/2899)) [RUM] [RUM-SLIM]
+
+## v5.23.1
+
+**Public Changes:**
+
+- 🐛 Fix replay visual viewport resize support ([#2891](https://github.com/DataDog/browser-sdk/pull/2891)) [RUM] [RUM-SLIM]
+- 🐛 Handle non-object response and error ([#2860](https://github.com/DataDog/browser-sdk/pull/2860)) [LOGS] [RUM] [RUM-SLIM] [WORKER]
+- ⚡️ Remove classes in favour of functions ([#2885](https://github.com/DataDog/browser-sdk/pull/2885)) [LOGS] [RUM] [RUM-SLIM] [WORKER] [RUM-REACT]
+- ⚡ Performance Friday Reduce Bundle Size ([#2875](https://github.com/DataDog/browser-sdk/pull/2875)) [LOGS] [RUM] [RUM-SLIM] [WORKER]
+- ⚡️Reduce bundle size: simplify config, use const enum, remove str redundancies ([#2877](https://github.com/DataDog/browser-sdk/pull/2877)) [LOGS] [RUM] [RUM-SLIM] [WORKER]
+- 📝 [RUM-152] Add packages name modified next to commit in CHANGELOG ([#2889](https://github.com/DataDog/browser-sdk/pull/2889))
+- 📝 [RUM-5172] add react integration documentation ([#2873](https://github.com/DataDog/browser-sdk/pull/2873)) [RUM-REACT]
+
+**Internal Changes:**
+
+- 👷 Bump chrome to 127.0.6533.72-1 ([#2890](https://github.com/DataDog/browser-sdk/pull/2890))
+- 👷 retry gitlab jobs on runner_system_failure ([#2886](https://github.com/DataDog/browser-sdk/pull/2886))
+- 👷 Update all non-major dependencies ([#2881](https://github.com/DataDog/browser-sdk/pull/2881)) [RUM-REACT]
+- 👷 Bump staging to staging-30
+- 👷 Update dependency minimatch to v10 ([#2863](https://github.com/DataDog/browser-sdk/pull/2863))
+- 👷 Update dependency glob to v11 ([#2862](https://github.com/DataDog/browser-sdk/pull/2862))
+- ♻️ [RUM-5294] Use performanceObserver for navigation entries ([#2855](https://github.com/DataDog/browser-sdk/pull/2855)) [RUM] [RUM-SLIM]
+- ⚗️ enable plugins as a beta feature ([#2872](https://github.com/DataDog/browser-sdk/pull/2872)) [LOGS] [RUM] [RUM-SLIM] [WORKER]
+
+## v5.23.0
+
+**Public Changes:**
+
+- ✨ [RUM-4781] Update Custom Web Vitals API ([#2801](https://github.com/DataDog/browser-sdk/pull/2801))
+- ✨ [RUM-4819] Add an experimental 'updateViewName' API ([#2808](https://github.com/DataDog/browser-sdk/pull/2808))
+- 🐛 Update path for contributing and changelog file ([#2867](https://github.com/DataDog/browser-sdk/pull/2867))
+- 🐛 Fix update view name api in context history ([#2853](https://github.com/DataDog/browser-sdk/pull/2853))
+- 🐛 [RUM-958] Fix performance observable compatibility with old browser version ([#2850](https://github.com/DataDog/browser-sdk/pull/2850))
+- 🐛 [RUM-5209] provide a span id for the initial document trace ([#2844](https://github.com/DataDog/browser-sdk/pull/2844))
+
+**Internal Changes:**
+
+- 👷 Update all non-major dependencies ([#2861](https://github.com/DataDog/browser-sdk/pull/2861))
+- 👷 Bump staging to staging-29
+- 👷 Update all non-major dependencies ([#2848](https://github.com/DataDog/browser-sdk/pull/2848))
+- 👷 Bump staging to staging-28
+- 👷 Update all non-major dependencies ([#2839](https://github.com/DataDog/browser-sdk/pull/2839))
+- 👷 Upgrade engine.io and socket.io-adapter packages to fix ws vulnerability ([#2842](https://github.com/DataDog/browser-sdk/pull/2842))
+- 🎨 Instrument fetch and XHR before trying to init consent ([#2834](https://github.com/DataDog/browser-sdk/pull/2834))
+- 🧪 Ensure skipped test do not fail ([#2821](https://github.com/DataDog/browser-sdk/pull/2821))
+- Update rum-react peerDependencies ([#2870](https://github.com/DataDog/browser-sdk/pull/2870))
+- ♻️ Get rid of setupBuilder from simple unit tests - pt 1 ([#2858](https://github.com/DataDog/browser-sdk/pull/2858))
+- ♻️ [RUM-159] Categorize changes as public or internal in the CHANGELOG ([#2851](https://github.com/DataDog/browser-sdk/pull/2851))
+- ♻️ [RUM-958] Use a performance observable instead of the lifecycle ([#2818](https://github.com/DataDog/browser-sdk/pull/2818))
+- ♻️ [RUM-67] Specialise type files ([#2845](https://github.com/DataDog/browser-sdk/pull/2845))
+- Specialise constant files ([#2841](https://github.com/DataDog/browser-sdk/pull/2841))
+- ⚗️✨ [RUM-4469] introduce an experimental React integration ([#2824](https://github.com/DataDog/browser-sdk/pull/2824))
+
+## v5.22.0
+
+- ✨⚗️ [RUM-4469] introduce a plugin system ([#2809](https://github.com/DataDog/browser-sdk/pull/2809))
+- ✨ [RUM-4014] DD_LOGS: add handling stack in beforeSend context ([#2786](https://github.com/DataDog/browser-sdk/pull/2786))
+- ✨ [RUM-3902] Add privacy control for action names ([#2707](https://github.com/DataDog/browser-sdk/pull/2707))
+- 🐛 Fix developer extension crashing when dev mode enabled ([#2810](https://github.com/DataDog/browser-sdk/pull/2810))
+- 🔮 [HADXVI-53] Browser SDK extension search bar improvement ([#2771](https://github.com/DataDog/browser-sdk/pull/2771))
+- ⚡️ [RUM-3570] Batch the records for 16ms minimum before processing them ([#2807](https://github.com/DataDog/browser-sdk/pull/2807))
+- Use the same service/version type in init() and startView() ([#2798](https://github.com/DataDog/browser-sdk/pull/2798))
+- ⚗️ [RUM-4780] Remote configuration ([#2799](https://github.com/DataDog/browser-sdk/pull/2799))
 
 ## v5.21.0
 

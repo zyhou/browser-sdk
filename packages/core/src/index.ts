@@ -6,6 +6,7 @@ export {
   TraceContextInjection,
   EndpointBuilder,
   serializeConfiguration,
+  isSampleRate,
   INTAKE_SITE_STAGING,
   INTAKE_SITE_US1,
   INTAKE_SITE_US1_FED,
@@ -93,14 +94,20 @@ export {
   deleteCookie,
   resetInitCookies,
 } from './browser/cookie'
-export { CookieStore, WeakRef, WeakRefConstructor } from './browser/types'
+export { CookieStore, WeakRef, WeakRefConstructor } from './browser/browser.types'
 export { initXhrObservable, XhrCompleteContext, XhrStartContext } from './browser/xhrObservable'
-export { initFetchObservable, FetchResolveContext, FetchStartContext, FetchContext } from './browser/fetchObservable'
+export {
+  initFetchObservable,
+  resetFetchObservable,
+  FetchResolveContext,
+  FetchStartContext,
+  FetchContext,
+} from './browser/fetchObservable'
 export { createPageExitObservable, PageExitEvent, PageExitReason, isPageExitReason } from './browser/pageExitObservable'
 export * from './browser/addEventListener'
 export * from './tools/timer'
 export { initConsoleObservable, resetConsoleObservable, ConsoleLog } from './domain/console/consoleObservable'
-export { BoundedBuffer } from './tools/boundedBuffer'
+export { createBoundedBuffer, BoundedBuffer } from './tools/boundedBuffer'
 export { catchUserErrors } from './tools/catchUserErrors'
 export { createContextManager, ContextManager } from './domain/context/contextManager'
 export { storeContextManager, removeStorageListeners } from './domain/context/storeContextManager'
@@ -113,7 +120,7 @@ export {
   CustomerDataCompressionStatus,
 } from './domain/context/customerDataTracker'
 export { CustomerDataType } from './domain/context/contextConstants'
-export { ValueHistory, ValueHistoryEntry, CLEAR_OLD_VALUES_INTERVAL } from './tools/valueHistory'
+export { createValueHistory, ValueHistory, ValueHistoryEntry, CLEAR_OLD_VALUES_INTERVAL } from './tools/valueHistory'
 export { readBytesFromStream } from './tools/readBytesFromStream'
 export { STORAGE_POLL_DELAY } from './domain/session/sessionStore'
 export { SESSION_STORE_KEY } from './domain/session/storeStrategies/sessionStoreStrategy'

@@ -1,5 +1,5 @@
 import { DefaultPrivacyLevel, isIE } from '@datadog/browser-core'
-import { createNewEvent } from '@datadog/browser-core/test'
+import { createNewEvent, registerCleanupTask } from '@datadog/browser-core/test'
 import type { RumConfiguration } from '@datadog/browser-rum-core'
 import { serializeDocument, SerializationContextStatus } from '../serialization'
 import type { ElementsScrollPositions } from '../elementsScrollPositions'
@@ -7,8 +7,8 @@ import { createElementsScrollPositions } from '../elementsScrollPositions'
 import { RecordType } from '../../../types'
 import { DEFAULT_CONFIGURATION, DEFAULT_SHADOW_ROOT_CONTROLLER } from './trackers.specHelper'
 import type { VisualViewportResizeCallback } from './trackViewportResize'
-import { tackVisualViewportResize } from './trackViewportResize'
-import type { Tracker } from './types'
+import { trackVisualViewportResize } from './trackViewportResize'
+import type { Tracker } from './tracker.types'
 
 describe('trackViewportResize', () => {
   let viewportResizeTracker: Tracker
@@ -20,6 +20,11 @@ describe('trackViewportResize', () => {
     if (isIE()) {
       pending('IE not supported')
     }
+
+    if (!window.visualViewport) {
+      pending('visualViewport not supported')
+    }
+
     configuration = { defaultPrivacyLevel: DefaultPrivacyLevel.ALLOW } as RumConfiguration
     elementsScrollPositions = createElementsScrollPositions()
     visualViewportResizeCallback = jasmine.createSpy()
@@ -30,11 +35,11 @@ describe('trackViewportResize', () => {
       elementsScrollPositions,
     })
 
-    viewportResizeTracker = tackVisualViewportResize(configuration, visualViewportResizeCallback)
-  })
+    viewportResizeTracker = trackVisualViewportResize(configuration, visualViewportResizeCallback)
 
-  afterEach(() => {
-    viewportResizeTracker.stop()
+    registerCleanupTask(() => {
+      viewportResizeTracker.stop()
+    })
   })
 
   it('collects visual viewport on resize', () => {

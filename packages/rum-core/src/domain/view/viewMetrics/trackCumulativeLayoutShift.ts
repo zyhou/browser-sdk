@@ -3,8 +3,8 @@ import type { Duration, RelativeTime, WeakRef, WeakRefConstructor } from '@datad
 import { isElementNode } from '../../../browser/htmlDomUtils'
 import type { LifeCycle } from '../../lifeCycle'
 import { LifeCycleEventType } from '../../lifeCycle'
-import type { RumLayoutShiftTiming } from '../../../browser/performanceCollection'
-import { supportPerformanceTimingEvent, RumPerformanceEntryType } from '../../../browser/performanceCollection'
+import type { RumLayoutShiftTiming } from '../../../browser/performanceObservable'
+import { supportPerformanceTimingEvent, RumPerformanceEntryType } from '../../../browser/performanceObservable'
 import { getSelectorFromElement } from '../../getSelectorFromElement'
 import type { RumConfiguration } from '../../configuration'
 
@@ -46,7 +46,6 @@ export function trackCumulativeLayoutShift(
   }
 
   let maxClsValue = 0
-  // WeakRef is not supported in IE11 and Safari mobile, but so is the layout shift API, so this code won't be executed in these browsers
   let maxClsTarget: WeakRef<HTMLElement> | undefined
   let maxClsStartTime: Duration | undefined
 
@@ -138,5 +137,5 @@ function slidingSessionWindow() {
  * Check whether `layout-shift` is supported by the browser.
  */
 export function isLayoutShiftSupported() {
-  return supportPerformanceTimingEvent(RumPerformanceEntryType.LAYOUT_SHIFT)
+  return supportPerformanceTimingEvent(RumPerformanceEntryType.LAYOUT_SHIFT) && 'WeakRef' in window
 }

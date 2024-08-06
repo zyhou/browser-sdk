@@ -103,15 +103,7 @@ function FacetValue({
         checked={facetSelectState === 'selected'}
         indeterminate={facetSelectState === 'partial-selected'}
         onChange={() => {
-          if (isOnly && !facetValuesFilter.facetValues[facet.path]?.includes(facetValue)) {
-            // when switching from only to include, remove all existing filter values
-            facetValuesFilter.facetValues = {
-              [facet.path]: [facetValue],
-            }
-            onExcludedFacetValuesChange(facetValuesFilter)
-          } else {
-            onExcludedFacetValuesChange(toggleFacetValue('exclude', facet, facetValuesFilter, facetValue))
-          }
+          onExcludedFacetValuesChange(toggleFacetValue(facetValuesFilter.type, facet, facetValuesFilter, facetValue))
         }}
       />
       <Text>{facetValueCount}</Text>
@@ -125,7 +117,7 @@ function FacetValue({
           onExcludedFacetValuesChange(toggleFacetValue(filterType, facet, facetValuesFilter, facetValue))
         }}
       >
-        {isOnly && isFiltered ? 'all' : 'only'}
+        {isOnly && facetSelectState === 'selected' ? 'all' : 'only'}
       </Button>
     </Flex>
   )

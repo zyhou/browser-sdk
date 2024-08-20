@@ -240,6 +240,23 @@ describe('rum assembly', () => {
           })
         })
 
+        it('should accept modification on context field for view events', () => {
+          mockExperimentalFeatures([ExperimentalFeature.VIEW_SPECIFIC_CONTEXT])
+          const { lifeCycle } = setupBuilder
+            .withConfiguration({
+              beforeSend: (event) => {
+                event.context.foo = 'bar'
+              },
+            })
+            .build()
+
+          notifyRawRumEvent(lifeCycle, {
+            rawRumEvent: createRawRumEvent(RumEventType.VIEW),
+          })
+
+          expect(serverRumEvents[0].context).toEqual({ foo: 'bar' })
+        })
+
         it('should reject modification on context field for view events', () => {
           const { lifeCycle } = setupBuilder
             .withConfiguration({

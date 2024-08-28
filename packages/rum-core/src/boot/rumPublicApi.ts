@@ -35,7 +35,7 @@ import {
   timeStampToClocks,
 } from '@datadog/browser-core'
 import type { LifeCycle } from '../domain/lifeCycle'
-import type { ViewContexts } from '../domain/contexts/viewContexts'
+import type { ViewHistoryEntries } from '../domain/contexts/viewHistoryEntries'
 import type { RumSessionManager } from '../domain/rumSessionManager'
 import type { ReplayStats } from '../rawRumEvent.types'
 import { ActionType, VitalType } from '../rawRumEvent.types'
@@ -257,7 +257,7 @@ export interface RecorderApi {
     lifeCycle: LifeCycle,
     configuration: RumConfiguration,
     sessionManager: RumSessionManager,
-    viewContexts: ViewContexts,
+    viewHistoryEntries: ViewHistoryEntries,
     deflateWorker: DeflateWorker | undefined
   ) => void
   isRecording: () => boolean
@@ -440,6 +440,9 @@ export function makeRumPublicApi(
     (options: ViewOptions): void
   } = monitor((options?: string | ViewOptions) => {
     const sanitizedOptions = typeof options === 'object' ? options : { name: options }
+    if (sanitizedOptions.context) {
+      customerDataTrackerManager.getOrCreateTracker(CustomerDataType.View).updateCustomerData(sanitizedOptions.context)
+    }
     strategy.startView(sanitizedOptions)
     addTelemetryUsage({ feature: 'start-view' })
   })

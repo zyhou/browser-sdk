@@ -1,7 +1,7 @@
 import type { DeflateEncoder, DeflateWorker, DeflateWorkerAction } from '@datadog/browser-core'
 import { BridgeCapability, PageExitReason, display, isIE } from '@datadog/browser-core'
-import type { RecorderApi, ViewHistoryEntries, RumSessionManager } from '@datadog/browser-rum-core';
-import { LifeCycle , LifeCycleEventType } from '@datadog/browser-rum-core'
+import type { RecorderApi, ViewHistoryEntries, RumSessionManager } from '@datadog/browser-rum-core'
+import { LifeCycle, LifeCycleEventType } from '@datadog/browser-rum-core'
 import { mockEventBridge, createNewEvent, registerCleanupTask } from '@datadog/browser-core/test'
 import type { RumSessionManagerMock } from '../../../rum-core/test'
 import { createRumSessionManagerMock, mockRumConfiguration } from '../../../rum-core/test'

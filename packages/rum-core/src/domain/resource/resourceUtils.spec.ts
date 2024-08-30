@@ -6,8 +6,8 @@ import { mockRumConfiguration } from '../../../test'
 import {
   MAX_ATTRIBUTE_VALUE_CHAR_LENGTH,
   computePerformanceResourceDetails,
-  computePerformanceResourceDuration,
-  computeResourceKind,
+  computeResourceEntryDuration,
+  computeResourceEntryType,
   isAllowedRequestUrl,
   isLongDataUrl,
   sanitizeDataUrl,
@@ -35,7 +35,7 @@ function generateResourceWith(overrides: Partial<RumPerformanceResourceTiming>) 
   return completeTiming as RumPerformanceResourceTiming
 }
 
-describe('computeResourceKind', () => {
+describe('computeResourceEntryType', () => {
   ;[
     {
       description: 'file extension with query params',
@@ -72,7 +72,7 @@ describe('computeResourceKind', () => {
     }) => {
       it(`should compute resource kind: ${description}`, () => {
         const entry = generateResourceWith({ initiatorType, name })
-        expect(computeResourceKind(entry)).toEqual(expected)
+        expect(computeResourceEntryType(entry)).toEqual(expected)
       })
     }
   )
@@ -277,15 +277,13 @@ describe('computePerformanceResourceDetails', () => {
   })
 })
 
-describe('computePerformanceResourceDuration', () => {
+describe('computeResourceEntryDuration', () => {
   it('should return the entry duration', () => {
-    expect(computePerformanceResourceDuration(generateResourceWith({}))).toBe(50e6 as ServerDuration)
+    expect(computeResourceEntryDuration(generateResourceWith({}))).toBe(50e6 as ServerDuration)
   })
 
   it('should use other available timing if the duration is 0', () => {
-    expect(computePerformanceResourceDuration(generateResourceWith({ duration: 0 as Duration }))).toBe(
-      50e6 as ServerDuration
-    )
+    expect(computeResourceEntryDuration(generateResourceWith({ duration: 0 as Duration }))).toBe(50e6 as ServerDuration)
   })
 })
 

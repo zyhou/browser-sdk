@@ -47,15 +47,15 @@ const RESOURCE_TYPES: Array<[ResourceType, (initiatorType: string, path: string)
   ],
 ]
 
-export function computeResourceKind(timing: RumPerformanceResourceTiming) {
-  const url = timing.name
+export function computeResourceEntryType(entry: RumPerformanceResourceTiming) {
+  const url = entry.name
   if (!isValidUrl(url)) {
-    addTelemetryDebug(`Failed to construct URL for "${timing.name}"`)
+    addTelemetryDebug(`Failed to construct URL for "${entry.name}"`)
     return ResourceType.OTHER
   }
   const path = getPathName(url)
   for (const [type, isType] of RESOURCE_TYPES) {
-    if (isType(timing.initiatorType, path)) {
+    if (isType(entry.initiatorType, path)) {
       return type
     }
   }
@@ -71,11 +71,11 @@ function areInOrder(...numbers: number[]) {
   return true
 }
 
-export function isRequestKind(timing: RumPerformanceResourceTiming) {
-  return timing.initiatorType === 'xmlhttprequest' || timing.initiatorType === 'fetch'
+export function isResourceEntryRequestType(entry: RumPerformanceResourceTiming) {
+  return entry.initiatorType === 'xmlhttprequest' || entry.initiatorType === 'fetch'
 }
 
-export function computePerformanceResourceDuration(entry: RumPerformanceResourceTiming): ServerDuration {
+export function computeResourceEntryDuration(entry: RumPerformanceResourceTiming): ServerDuration {
   const { duration, startTime, responseEnd } = entry
 
   // Safari duration is always 0 on timings blocked by cross origin policies.
@@ -89,7 +89,7 @@ export function computePerformanceResourceDuration(entry: RumPerformanceResource
 export function computePerformanceResourceDetails(
   entry: RumPerformanceResourceTiming
 ): PerformanceResourceDetails | undefined {
-  if (!isValidEntry(entry)) {
+  if (!hasValidResourceEntryTimings(entry)) {
     return undefined
   }
   const {
@@ -135,7 +135,11 @@ export function computePerformanceResourceDetails(
   return details
 }
 
-export function isValidEntry(entry: RumPerformanceResourceTiming) {
+export function hasValidResourceEntryDuration(entry: RumPerformanceResourceTiming) {
+  return entry.duration >= 0
+}
+
+export function hasValidResourceEntryTimings(entry: RumPerformanceResourceTiming) {
   if (isExperimentalFeatureEnabled(ExperimentalFeature.TOLERANT_RESOURCE_TIMINGS)) {
     return true
   }
@@ -175,7 +179,7 @@ function formatTiming(origin: RelativeTime, start: RelativeTime, end: RelativeTi
   }
 }
 
-export function computeSize(entry: RumPerformanceResourceTiming) {
+export function computeResourceEntrySize(entry: RumPerformanceResourceTiming) {
   // Make sure a request actually occurred
   if (entry.startTime < entry.responseStart) {
     const { encodedBodySize, decodedBodySize, transferSize } = entry

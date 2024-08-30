@@ -1,4 +1,4 @@
-import type { Subscription } from '@datadog/browser-core'
+import type { Duration, Subscription } from '@datadog/browser-core'
 import type { Clock } from '@datadog/browser-core/test'
 import { mockClock } from '@datadog/browser-core/test'
 import { createPerformanceEntry, mockPerformanceObserver, mockRumConfiguration } from '../../test'
@@ -37,7 +37,7 @@ describe('performanceObservable', () => {
       expect(observableCallback).toHaveBeenCalledWith([jasmine.objectContaining({ name: allowedUrl })])
     })
 
-    it('should not notify forbidden performance resources', () => {
+    it('should not notify performance resources with forbidden url', () => {
       const { notifyPerformanceEntries } = mockPerformanceObserver()
       const performanceResourceObservable = createPerformanceObservable(configuration, {
         type: RumPerformanceEntryType.RESOURCE,
@@ -45,6 +45,17 @@ describe('performanceObservable', () => {
       performanceSubscription = performanceResourceObservable.subscribe(observableCallback)
 
       notifyPerformanceEntries([createPerformanceEntry(RumPerformanceEntryType.RESOURCE, { name: forbiddenUrl })])
+      expect(observableCallback).not.toHaveBeenCalled()
+    })
+
+    it('should not notify performance resources with invalid duration', () => {
+      const { notifyPerformanceEntries } = mockPerformanceObserver()
+      const performanceResourceObservable = createPerformanceObservable(configuration, {
+        type: RumPerformanceEntryType.RESOURCE,
+      })
+      performanceSubscription = performanceResourceObservable.subscribe(observableCallback)
+
+      notifyPerformanceEntries([createPerformanceEntry(RumPerformanceEntryType.RESOURCE, { duration: -1 as Duration })])
       expect(observableCallback).not.toHaveBeenCalled()
     })
 

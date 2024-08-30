@@ -1,4 +1,11 @@
-import { elapsed, noop, ONE_MINUTE } from '@datadog/browser-core'
+import {
+  addTelemetryDebug,
+  elapsed,
+  ExperimentalFeature,
+  isExperimentalFeatureEnabled,
+  noop,
+  ONE_MINUTE,
+} from '@datadog/browser-core'
 import type { Duration, RelativeTime } from '@datadog/browser-core'
 import { RumPerformanceEntryType, supportPerformanceTimingEvent } from '../../../browser/performanceObservable'
 import type { RumFirstInputTiming, RumPerformanceEventTiming } from '../../../browser/performanceObservable'
@@ -8,6 +15,7 @@ import { ViewLoadingType } from '../../../rawRumEvent.types'
 import { getSelectorFromElement } from '../../getSelectorFromElement'
 import { isElementNode } from '../../../browser/htmlDomUtils'
 import type { RumConfiguration } from '../../configuration'
+import { interactionSelectorMap } from '../../action/trackClickActions'
 import { getInteractionCount, initInteractionCountPolyfill } from './interactionCountPolyfill'
 
 // Arbitrary value to prevent unnecessary memory usage on views with lots of interactions.
@@ -65,6 +73,7 @@ export function trackInteractionToNextPaint(
 
     const newInteraction = longestInteractions.estimateP98Interaction()
     if (newInteraction && newInteraction.duration !== interactionToNextPaint) {
+      const inpTarget = newInteraction.target
       interactionToNextPaint = newInteraction.duration
       interactionToNextPaintStartTime = elapsed(viewStart, newInteraction.startTime)
 
@@ -75,6 +84,22 @@ export function trackInteractionToNextPaint(
         )
       } else {
         interactionToNextPaintTargetSelector = undefined
+      }
+      if (
+        !interactionToNextPaintTargetSelector &&
+        isExperimentalFeatureEnabled(ExperimentalFeature.NULL_INP_TELEMETRY)
+      ) {
+        if (interactionSelectorMap.has(newInteraction.startTime)) {
+          interactionToNextPaintTargetSelector = interactionSelectorMap.get(newInteraction.startTime)
+          interactionSelectorMap.delete(newInteraction.startTime)
+        }
+        addTelemetryDebug('Fail to get INP target selector', {
+          hasTarget: !!inpTarget,
+          targetIsConnected: inpTarget ? inpTarget.isConnected : undefined,
+          targetIsElementNode: inpTarget ? isElementNode(inpTarget) : undefined,
+          inp: newInteraction.duration,
+          isFoundInMap: !!interactionToNextPaintTargetSelector,
+        })
       }
     }
   })

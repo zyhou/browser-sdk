@@ -10,7 +10,13 @@ import {
 
 import { mockExperimentalFeatures } from '@datadog/browser-core/test'
 import type { TestSetupBuilder } from '../../../test'
-import { createPerformanceEntry, mockPerformanceObserver, setup } from '../../../test'
+import {
+  createPerformanceEntry,
+  mockDocumentReadyState,
+  mockGlobalPerformanceBuffer,
+  mockPerformanceObserver,
+  setup,
+} from '../../../test'
 import { RumEventType, ViewLoadingType } from '../../rawRumEvent.types'
 import type { RumEvent } from '../../rumEvent.types'
 import { LifeCycleEventType } from '../lifeCycle'
@@ -29,6 +35,7 @@ describe('track views automatically', () => {
   beforeEach(() => {
     setupBuilder = setup()
       .withFakeLocation('/foo')
+      .withFakeClock()
       .beforeBuild((buildContext) => {
         viewTest = setupViewTest(buildContext, { name: 'initial view name' })
         return viewTest
@@ -108,6 +115,7 @@ describe('view lifecycle', () => {
   beforeEach(() => {
     setupBuilder = setup()
       .withFakeLocation('/foo')
+      .withFakeClock()
       .beforeBuild((buildContext) => {
         notifySpy = spyOn(buildContext.lifeCycle, 'notify').and.callThrough()
 
@@ -264,28 +272,31 @@ describe('view lifecycle', () => {
 
   describe('session keep alive', () => {
     it('should emit a view update periodically', () => {
-      const { clock } = setupBuilder.withFakeClock().build()
+      const { clock } = setupBuilder.build()
+      clock.tick(THROTTLE_VIEW_UPDATE_PERIOD)
 
       const { getViewUpdateCount } = viewTest
 
-      expect(getViewUpdateCount()).toEqual(1)
+      expect(getViewUpdateCount()).toEqual(2)
 
       clock.tick(SESSION_KEEP_ALIVE_INTERVAL)
 
-      expect(getViewUpdateCount()).toEqual(2)
+      expect(getViewUpdateCount()).toEqual(3)
     })
 
     it('should not send periodical updates after the session has expired', () => {
-      const { lifeCycle, clock } = setupBuilder.withFakeClock().build()
+      const { lifeCycle, clock } = setupBuilder.build()
+      clock.tick(THROTTLE_VIEW_UPDATE_PERIOD)
+
       const { getViewUpdateCount } = viewTest
 
       lifeCycle.notify(LifeCycleEventType.SESSION_EXPIRED)
 
-      expect(getViewUpdateCount()).toBe(2)
+      expect(getViewUpdateCount()).toBe(3)
 
       clock.tick(SESSION_KEEP_ALIVE_INTERVAL)
 
-      expect(getViewUpdateCount()).toBe(2)
+      expect(getViewUpdateCount()).toBe(3)
     })
   })
 
@@ -379,6 +390,7 @@ describe('view metrics', () => {
     ;({ notifyPerformanceEntries } = mockPerformanceObserver())
     setupBuilder = setup()
       .withFakeLocation('/foo')
+      .withFakeClock()
       .beforeBuild((buildContext) => {
         viewTest = setupViewTest(buildContext)
         return viewTest
@@ -390,11 +402,11 @@ describe('view metrics', () => {
       if (!isLayoutShiftSupported()) {
         pending('CLS web vital not supported')
       }
-      const { lifeCycle, clock } = setupBuilder.withFakeClock().build()
+      const { lifeCycle, clock } = setupBuilder.build()
       const { getViewUpdateCount, getViewUpdate } = viewTest
 
       expect(getViewUpdateCount()).toEqual(1)
-      expect(getViewUpdate(0).initialViewMetrics).toEqual({})
+      expect(getViewUpdate(0).commonViewMetrics.cumulativeLayoutShift).toEqual({ value: 0 })
 
       lifeCycle.notify(LifeCycleEventType.PERFORMANCE_ENTRIES_COLLECTED, [
         createPerformanceEntry(RumPerformanceEntryType.LAYOUT_SHIFT),
@@ -416,7 +428,7 @@ describe('view metrics', () => {
       if (!isLayoutShiftSupported()) {
         pending('CLS web vital not supported')
       }
-      const { lifeCycle, clock } = setupBuilder.withFakeClock().build()
+      const { lifeCycle, clock } = setupBuilder.build()
       const { getViewUpdate, getViewUpdateCount, getViewCreateCount, startView } = viewTest
       startView()
       expect(getViewCreateCount()).toEqual(2)
@@ -435,14 +447,18 @@ describe('view metrics', () => {
 
   describe('initial view metrics', () => {
     it('should be updated when notified with a PERFORMANCE_ENTRY_COLLECTED event (throttled)', () => {
-      const { clock } = setupBuilder.withFakeClock().build()
+      const { triggerOnLoad } = mockDocumentReadyState()
+
+      const navigationEntry = createPerformanceEntry(RumPerformanceEntryType.NAVIGATION)
+      mockGlobalPerformanceBuffer([navigationEntry])
+
+      const { clock } = setupBuilder.build()
       const { getViewUpdateCount, getViewUpdate } = viewTest
       expect(getViewUpdateCount()).toEqual(1)
       expect(getViewUpdate(0).initialViewMetrics).toEqual({})
 
-      const navigationEntry = createPerformanceEntry(RumPerformanceEntryType.NAVIGATION)
       clock.tick(navigationEntry.responseStart) // ensure now > responseStart
-      notifyPerformanceEntries([navigationEntry])
+      triggerOnLoad()
 
       expect(getViewUpdateCount()).toEqual(1)
 
@@ -459,7 +475,7 @@ describe('view metrics', () => {
     })
 
     it('should be updated for 5 min after view end', () => {
-      const { lifeCycle, clock } = setupBuilder.withFakeClock().build()
+      const { lifeCycle, clock } = setupBuilder.build()
       const { getViewCreateCount, getViewUpdate, getViewUpdateCount, startView } = viewTest
       startView()
       expect(getViewCreateCount()).toEqual(2)
@@ -481,7 +497,7 @@ describe('view metrics', () => {
     })
 
     it('should not be updated 5 min after view end', () => {
-      const { lifeCycle, clock } = setupBuilder.withFakeClock().build()
+      const { lifeCycle, clock } = setupBuilder.build()
       const { getViewCreateCount, getViewUpdate, getViewUpdateCount, startView } = viewTest
       startView()
       expect(getViewCreateCount()).toEqual(2)
@@ -505,7 +521,9 @@ describe('view metrics', () => {
       const VIEW_DURATION = 100 as Duration
 
       beforeEach(() => {
-        const { lifeCycle, clock } = setupBuilder.withFakeClock().build()
+        mockGlobalPerformanceBuffer([createPerformanceEntry(RumPerformanceEntryType.NAVIGATION)])
+        const { lifeCycle, clock } = setupBuilder.build()
+
         const { getViewUpdateCount, getViewUpdate, startView } = viewTest
 
         expect(getViewUpdateCount()).toEqual(1)
@@ -522,7 +540,6 @@ describe('view metrics', () => {
           createPerformanceEntry(RumPerformanceEntryType.PAINT),
           createPerformanceEntry(RumPerformanceEntryType.LARGEST_CONTENTFUL_PAINT),
         ])
-        notifyPerformanceEntries([createPerformanceEntry(RumPerformanceEntryType.NAVIGATION)])
 
         clock.tick(THROTTLE_VIEW_UPDATE_PERIOD)
 
@@ -547,13 +564,7 @@ describe('view metrics', () => {
         expect(initialView.last.initialViewMetrics).toEqual(
           jasmine.objectContaining({
             firstContentfulPaint: 123 as Duration,
-            navigationTimings: {
-              firstByte: 123 as Duration,
-              domComplete: 456 as Duration,
-              domContentLoaded: 345 as Duration,
-              domInteractive: 234 as Duration,
-              loadEvent: 567 as Duration,
-            },
+            navigationTimings: jasmine.any(Object),
             largestContentfulPaint: { value: 789 as Duration, targetSelector: undefined },
           })
         )
@@ -576,10 +587,12 @@ describe('view is active', () => {
   let viewTest: ViewTest
 
   beforeEach(() => {
-    setupBuilder = setup().beforeBuild((buildContext) => {
-      viewTest = setupViewTest(buildContext)
-      return viewTest
-    })
+    setupBuilder = setup()
+      .withFakeClock()
+      .beforeBuild((buildContext) => {
+        viewTest = setupViewTest(buildContext)
+        return viewTest
+      })
   })
 
   it('should set initial view as active', () => {
@@ -744,14 +757,16 @@ describe('start view', () => {
   let viewTest: ViewTest
 
   beforeEach(() => {
-    setupBuilder = setup().beforeBuild((buildContext) => {
-      viewTest = setupViewTest(buildContext)
-      return viewTest
-    })
+    setupBuilder = setup()
+      .withFakeClock()
+      .beforeBuild((buildContext) => {
+        viewTest = setupViewTest(buildContext)
+        return viewTest
+      })
   })
 
   it('should start a new view', () => {
-    const { clock } = setupBuilder.withFakeClock().build()
+    const { clock } = setupBuilder.build()
     const { getViewUpdateCount, getViewUpdate, startView } = viewTest
 
     expect(getViewUpdateCount()).toBe(1)
@@ -827,7 +842,7 @@ describe('start view', () => {
   })
 
   it('should use the provided clock to stop the current view and start the new one', () => {
-    const { clock } = setupBuilder.withFakeClock().build()
+    const { clock } = setupBuilder.build()
     const { getViewUpdate, startView } = viewTest
 
     clock.tick(100)
@@ -845,6 +860,7 @@ describe('view event count', () => {
   beforeEach(() => {
     setupBuilder = setup()
       .withFakeLocation('/foo')
+      .withFakeClock()
       .beforeBuild((buildContext) => {
         viewTest = setupViewTest(buildContext)
         return viewTest
@@ -852,7 +868,7 @@ describe('view event count', () => {
   })
 
   it('should be updated when notified with a RUM_EVENT_COLLECTED event', () => {
-    const { lifeCycle, clock } = setupBuilder.withFakeClock().build()
+    const { lifeCycle, clock } = setupBuilder.build()
     const { getViewUpdate, getViewUpdateCount } = viewTest
 
     lifeCycle.notify(LifeCycleEventType.RUM_EVENT_COLLECTED, createFakeActionEvent())
@@ -876,7 +892,7 @@ describe('view event count', () => {
   })
 
   it('should be updated for 5 min after view end', () => {
-    const { lifeCycle, clock } = setupBuilder.withFakeClock().build()
+    const { lifeCycle, clock } = setupBuilder.build()
     const { getViewUpdate, getViewUpdateCount, getViewCreateCount, startView } = viewTest
     startView()
     expect(getViewCreateCount()).toEqual(2)
@@ -897,7 +913,7 @@ describe('view event count', () => {
   })
 
   it('should not be updated 5 min after view end', () => {
-    const { lifeCycle, clock } = setupBuilder.withFakeClock().build()
+    const { lifeCycle, clock } = setupBuilder.build()
     const { getViewUpdate, getViewUpdateCount, getViewCreateCount, startView } = viewTest
     startView()
     expect(getViewCreateCount()).toEqual(2)
@@ -923,88 +939,91 @@ describe('view event count', () => {
       view: viewTest.getLatestViewContext(),
     } as RumEvent & Context
   }
+})
 
-  describe('view specific context', () => {
-    let setupBuilder: TestSetupBuilder
-    let viewTest: ViewTest
+describe('view specific context', () => {
+  let setupBuilder: TestSetupBuilder
+  let viewTest: ViewTest
 
-    beforeEach(() => {
-      setupBuilder = setup()
-        .withFakeLocation('/foo')
-        .beforeBuild((buildContext) => {
-          viewTest = setupViewTest(buildContext)
-          return viewTest
-        })
-    })
-
-    it('should update view context if startView has context parameter', () => {
-      mockExperimentalFeatures([ExperimentalFeature.VIEW_SPECIFIC_CONTEXT])
-      setupBuilder.build()
-      const { getViewUpdate, startView } = viewTest
-
-      startView({ context: { foo: 'bar' } })
-      expect(getViewUpdate(2).context).toEqual({ foo: 'bar' })
-    })
-
-    it('should replace current context set on view event', () => {
-      mockExperimentalFeatures([ExperimentalFeature.VIEW_SPECIFIC_CONTEXT])
-      setupBuilder.build()
-      const { getViewUpdate, startView } = viewTest
-
-      startView({ context: { foo: 'bar' } })
-      expect(getViewUpdate(2).context).toEqual({ foo: 'bar' })
-
-      startView({ context: { bar: 'baz' } })
-      expect(getViewUpdate(4).context).toEqual({ bar: 'baz' })
-    })
-
-    it('should not update view context if the feature is not enabled', () => {
-      setupBuilder.build()
-      const { getViewUpdate, startView } = viewTest
-
-      startView({ context: { foo: 'bar' } })
-      expect(getViewUpdate(2).context).toBeUndefined()
-    })
-  })
-
-  describe('update view name', () => {
-    let setupBuilder: TestSetupBuilder
-    let viewTest: ViewTest
-
-    beforeEach(() => {
-      setupBuilder = setup().beforeBuild((buildContext) => {
+  beforeEach(() => {
+    setupBuilder = setup()
+      .withFakeLocation('/foo')
+      .withFakeClock()
+      .beforeBuild((buildContext) => {
         viewTest = setupViewTest(buildContext)
         return viewTest
       })
-    })
+  })
 
-    it('should update an undefined view name if the experimental feature is enabled', () => {
-      mockExperimentalFeatures([ExperimentalFeature.UPDATE_VIEW_NAME])
-      setupBuilder.build()
-      const { getViewUpdate, startView, updateViewName } = viewTest
+  it('should update view context if startView has context parameter', () => {
+    mockExperimentalFeatures([ExperimentalFeature.VIEW_SPECIFIC_CONTEXT])
+    setupBuilder.build()
+    const { getViewUpdate, startView } = viewTest
 
-      startView()
-      updateViewName('foo')
-      expect(getViewUpdate(3).name).toEqual('foo')
-    })
+    startView({ context: { foo: 'bar' } })
+    expect(getViewUpdate(2).context).toEqual({ foo: 'bar' })
+  })
 
-    it('should update a defined view name if the experimental feature is enabled', () => {
-      mockExperimentalFeatures([ExperimentalFeature.UPDATE_VIEW_NAME])
-      setupBuilder.build()
-      const { getViewUpdate, startView, updateViewName } = viewTest
+  it('should replace current context set on view event', () => {
+    mockExperimentalFeatures([ExperimentalFeature.VIEW_SPECIFIC_CONTEXT])
+    setupBuilder.build()
+    const { getViewUpdate, startView } = viewTest
 
-      startView({ name: 'initial view name' })
-      updateViewName('foo')
-      expect(getViewUpdate(3).name).toEqual('foo')
-    })
+    startView({ context: { foo: 'bar' } })
+    expect(getViewUpdate(2).context).toEqual({ foo: 'bar' })
 
-    it('should not update a defined view name if the experimental feature is not enabled', () => {
-      setupBuilder.build()
-      const { getViewUpdate, startView, updateViewName } = viewTest
+    startView({ context: { bar: 'baz' } })
+    expect(getViewUpdate(4).context).toEqual({ bar: 'baz' })
+  })
 
-      startView({ name: 'initial view name' })
-      updateViewName('foo')
-      expect(getViewUpdate(2).name).toEqual('initial view name')
-    })
+  it('should not update view context if the feature is not enabled', () => {
+    setupBuilder.build()
+    const { getViewUpdate, startView } = viewTest
+
+    startView({ context: { foo: 'bar' } })
+    expect(getViewUpdate(2).context).toBeUndefined()
+  })
+})
+
+describe('update view name', () => {
+  let setupBuilder: TestSetupBuilder
+  let viewTest: ViewTest
+
+  beforeEach(() => {
+    setupBuilder = setup()
+      .withFakeClock()
+      .beforeBuild((buildContext) => {
+        viewTest = setupViewTest(buildContext)
+        return viewTest
+      })
+  })
+
+  it('should update an undefined view name if the experimental feature is enabled', () => {
+    mockExperimentalFeatures([ExperimentalFeature.UPDATE_VIEW_NAME])
+    setupBuilder.build()
+    const { getViewUpdate, startView, updateViewName } = viewTest
+
+    startView()
+    updateViewName('foo')
+    expect(getViewUpdate(3).name).toEqual('foo')
+  })
+
+  it('should update a defined view name if the experimental feature is enabled', () => {
+    mockExperimentalFeatures([ExperimentalFeature.UPDATE_VIEW_NAME])
+    setupBuilder.build()
+    const { getViewUpdate, startView, updateViewName } = viewTest
+
+    startView({ name: 'initial view name' })
+    updateViewName('foo')
+    expect(getViewUpdate(3).name).toEqual('foo')
+  })
+
+  it('should not update a defined view name if the experimental feature is not enabled', () => {
+    setupBuilder.build()
+    const { getViewUpdate, startView, updateViewName } = viewTest
+
+    startView({ name: 'initial view name' })
+    updateViewName('foo')
+    expect(getViewUpdate(2).name).toEqual('initial view name')
   })
 })

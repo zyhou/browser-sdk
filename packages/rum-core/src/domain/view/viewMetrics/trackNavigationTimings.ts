@@ -1,13 +1,9 @@
-import type { Duration } from '@datadog/browser-core'
-import { forEach, setTimeout, noop, relativeNow, runOnReadyState } from '@datadog/browser-core'
+import type { Duration, TimeoutId } from '@datadog/browser-core'
+import { setTimeout, relativeNow, runOnReadyState, clearTimeout } from '@datadog/browser-core'
 import type { RelativePerformanceTiming } from '../../../browser/performanceUtils'
 import { computeRelativePerformanceTiming } from '../../../browser/performanceUtils'
 import type { RumPerformanceNavigationTiming } from '../../../browser/performanceObservable'
-import {
-  createPerformanceObservable,
-  RumPerformanceEntryType,
-  supportPerformanceTimingEvent,
-} from '../../../browser/performanceObservable'
+import { RumPerformanceEntryType, supportPerformanceTimingEvent } from '../../../browser/performanceObservable'
 import type { RumConfiguration } from '../../configuration'
 
 export interface NavigationTimings {
@@ -22,23 +18,21 @@ export function trackNavigationTimings(
   configuration: RumConfiguration,
   callback: (timings: NavigationTimings) => void
 ) {
-  const processEntry = (entry: RumPerformanceNavigationTiming | RelativePerformanceTiming) => {
+  return waitAfterLoadEvent(configuration, () => {
+    let entry: RumPerformanceNavigationTiming | RelativePerformanceTiming
+
+    if (supportPerformanceTimingEvent(RumPerformanceEntryType.NAVIGATION)) {
+      entry = performance.getEntriesByType(
+        RumPerformanceEntryType.NAVIGATION
+      )[0] as unknown as RumPerformanceNavigationTiming
+    } else {
+      entry = computeRelativePerformanceTiming()
+    }
+
     if (!isIncompleteNavigation(entry)) {
       callback(processNavigationEntry(entry))
     }
-  }
-
-  let stop = noop
-  if (supportPerformanceTimingEvent(RumPerformanceEntryType.NAVIGATION)) {
-    ;({ unsubscribe: stop } = createPerformanceObservable(configuration, {
-      type: RumPerformanceEntryType.NAVIGATION,
-      buffered: true,
-    }).subscribe((entries) => forEach(entries, processEntry)))
-  } else {
-    retrieveNavigationTiming(configuration, processEntry)
-  }
-
-  return { stop }
+  })
 }
 
 function processNavigationEntry(entry: RumPerformanceNavigationTiming | RelativePerformanceTiming): NavigationTimings {
@@ -59,12 +53,16 @@ function isIncompleteNavigation(entry: RumPerformanceNavigationTiming | Relative
   return entry.loadEventEnd <= 0
 }
 
-function retrieveNavigationTiming(
-  configuration: RumConfiguration,
-  callback: (timing: RelativePerformanceTiming) => void
-) {
-  runOnReadyState(configuration, 'complete', () => {
-    // Send it a bit after the actual load event, so the "loadEventEnd" timing is accurate
-    setTimeout(() => callback(computeRelativePerformanceTiming()))
+function waitAfterLoadEvent(configuration: RumConfiguration, callback: () => void) {
+  let timeoutId: TimeoutId | undefined
+  const { stop: stopOnReadyState } = runOnReadyState(configuration, 'complete', () => {
+    // Invoke the callback a bit after the actual load event, so the "loadEventEnd" timing is accurate
+    timeoutId = setTimeout(() => callback())
   })
+  return {
+    stop: () => {
+      stopOnReadyState()
+      clearTimeout(timeoutId)
+    },
+  }
 }

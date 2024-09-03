@@ -60,6 +60,7 @@ export interface BuildContext {
   globalContextManager: ContextManager
   userContextManager: ContextManager
   customerDataTrackerManager: CustomerDataTrackerManager
+  clock: Clock
 }
 
 export interface TestIO {
@@ -193,6 +194,7 @@ export function setup(): TestSetupBuilder {
           globalContextManager,
           userContextManager,
           customerDataTrackerManager,
+          clock,
         })
         if (result && result.stop) {
           cleanupTasks.push(result.stop)

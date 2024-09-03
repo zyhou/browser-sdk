@@ -1,16 +1,21 @@
 import type { Duration, RelativeTime } from '@datadog/browser-core'
 import type { Clock } from '@datadog/browser-core/test'
 import { mockClock, registerCleanupTask } from '@datadog/browser-core/test'
-import type { RumPerformanceEntry } from '../../../browser/performanceObservable'
+import type { RumPerformanceNavigationTiming } from '../../../browser/performanceObservable'
 import { RumPerformanceEntryType } from '../../../browser/performanceObservable'
-import { createPerformanceEntry, mockPerformanceObserver, mockPerformanceTiming } from '../../../../test'
+import {
+  createPerformanceEntry,
+  mockDocumentReadyState,
+  mockGlobalPerformanceBuffer,
+  mockPerformanceTiming,
+} from '../../../../test'
 import type { RumConfiguration } from '../../configuration'
 import type { NavigationTimings } from './trackNavigationTimings'
 import { trackNavigationTimings } from './trackNavigationTimings'
 
 describe('trackNavigationTimings', () => {
   let navigationTimingsCallback: jasmine.Spy<(timings: NavigationTimings) => void>
-  let notifyPerformanceEntries: (entries: RumPerformanceEntry[]) => void
+  let performanceNavigationTiming: RumPerformanceNavigationTiming
   let stop: () => void
   let clock: Clock
 
@@ -20,19 +25,32 @@ describe('trackNavigationTimings', () => {
 
     registerCleanupTask(() => {
       window.PerformanceObserver = originalPerformanceObserver
-      stop()
-      clock?.cleanup()
     })
   }
 
   beforeEach(() => {
     navigationTimingsCallback = jasmine.createSpy()
+
+    performanceNavigationTiming = createPerformanceEntry(RumPerformanceEntryType.NAVIGATION)
+    mockGlobalPerformanceBuffer([performanceNavigationTiming])
+
+    clock = mockClock(new Date(0))
+    // Make sure `relativeNow()` is after the mocked response start
+    clock.tick(performanceNavigationTiming.responseStart)
+
+    registerCleanupTask(() => {
+      clock.cleanup()
+      stop()
+    })
   })
 
   it('should provide navigation timing', () => {
-    ;({ notifyPerformanceEntries } = mockPerformanceObserver())
+    const { triggerOnLoad } = mockDocumentReadyState()
+
     ;({ stop } = trackNavigationTimings({} as RumConfiguration, navigationTimingsCallback))
-    notifyPerformanceEntries([createPerformanceEntry(RumPerformanceEntryType.NAVIGATION)])
+
+    triggerOnLoad()
+    clock.tick(0)
 
     expect(navigationTimingsCallback).toHaveBeenCalledOnceWith({
       firstByte: 123 as Duration,
@@ -43,25 +61,39 @@ describe('trackNavigationTimings', () => {
     })
   })
 
-  it('should discard incomplete navigation timing', () => {
-    ;({ notifyPerformanceEntries } = mockPerformanceObserver())
+  it('should wait for the load event to provide navigation timing', () => {
+    mockDocumentReadyState()
     ;({ stop } = trackNavigationTimings({} as RumConfiguration, navigationTimingsCallback))
-    notifyPerformanceEntries([
-      createPerformanceEntry(RumPerformanceEntryType.NAVIGATION, { loadEventEnd: 0 as RelativeTime }),
-    ])
+
+    clock.tick(0)
+
+    expect(navigationTimingsCallback).not.toHaveBeenCalled()
+  })
+
+  it('should discard incomplete navigation timing', () => {
+    performanceNavigationTiming.loadEventEnd = 0 as RelativeTime
+    const { triggerOnLoad } = mockDocumentReadyState()
+
+    ;({ stop } = trackNavigationTimings({} as RumConfiguration, navigationTimingsCallback))
+
+    triggerOnLoad()
+    clock.tick(0)
 
     expect(navigationTimingsCallback).not.toHaveBeenCalled()
   })
 
   it('should provide navigation timing when navigation timing is not supported ', () => {
-    clock = mockClock(new Date(0))
-    mockPerformanceTiming()
     removePerformanceObserver()
+    mockPerformanceTiming()
+    const { triggerOnLoad } = mockDocumentReadyState()
+
     ;({ stop } = trackNavigationTimings({} as RumConfiguration, navigationTimingsCallback))
+
+    triggerOnLoad()
     clock.tick(0)
 
     expect(navigationTimingsCallback).toHaveBeenCalledOnceWith({
-      firstByte: undefined,
+      firstByte: 123 as Duration,
       domComplete: 456 as Duration,
       domContentLoaded: 345 as Duration,
       domInteractive: 234 as Duration,

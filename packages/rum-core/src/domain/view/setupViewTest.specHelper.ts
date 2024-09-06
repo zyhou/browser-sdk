@@ -6,7 +6,7 @@ import { trackViews } from './trackViews'
 export type ViewTest = ReturnType<typeof setupViewTest>
 
 export function setupViewTest(
-  { lifeCycle, location, domMutationObservable, configuration, locationChangeObservable, clock }: BuildContext,
+  { lifeCycle, location, domMutationObservable, configuration, locationChangeObservable }: BuildContext,
   initialViewOptions?: ViewOptions
 ) {
   const {
@@ -35,9 +35,6 @@ export function setupViewTest(
     !configuration.trackViewsManually,
     initialViewOptions
   )
-
-  clock.tick(0) // run immediate timeout
-
   return {
     stop,
     startView,

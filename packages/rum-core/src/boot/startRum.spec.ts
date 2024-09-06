@@ -17,7 +17,7 @@ import type { RumSessionManagerMock, TestSetupBuilder } from '../../test'
 import {
   createPerformanceEntry,
   createRumSessionManagerMock,
-  mockDocumentReadyState,
+  mockPerformanceObserver,
   noopRecorderApi,
   setup,
 } from '../../test'
@@ -293,7 +293,7 @@ describe('rum events url', () => {
   })
 
   it('should keep the same URL when updating an ended view', () => {
-    const { triggerOnLoad } = mockDocumentReadyState()
+    const { notifyPerformanceEntries } = mockPerformanceObserver()
     const { clock, changeLocation } = setupBuilder.withFakeClock().withFakeLocation('http://foo.com/').build()
 
     clock.tick(VIEW_DURATION)
@@ -302,7 +302,7 @@ describe('rum events url', () => {
 
     serverRumEvents.length = 0
 
-    triggerOnLoad()
+    notifyPerformanceEntries([createPerformanceEntry(RumPerformanceEntryType.NAVIGATION)])
     clock.tick(THROTTLE_VIEW_UPDATE_PERIOD)
 
     expect(serverRumEvents.length).toEqual(1)

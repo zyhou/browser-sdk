@@ -1,7 +1,8 @@
 import type { Duration, RelativeTime } from '@datadog/browser-core'
-import { mockClock, registerCleanupTask } from '@datadog/browser-core/test'
+import { registerCleanupTask } from '@datadog/browser-core/test'
+import type { RumPerformanceEntry } from '../../../browser/performanceObservable'
 import { RumPerformanceEntryType } from '../../../browser/performanceObservable'
-import { createPerformanceEntry, mockGlobalPerformanceBuffer } from '../../../../test'
+import { createPerformanceEntry, mockPerformanceObserver } from '../../../../test'
 import { LifeCycle, LifeCycleEventType } from '../../lifeCycle'
 import type { RumConfiguration } from '../../configuration'
 import { trackInitialViewMetrics } from './trackInitialViewMetrics'
@@ -11,21 +12,14 @@ describe('trackInitialViewMetrics', () => {
   let scheduleViewUpdateSpy: jasmine.Spy<() => void>
   let trackInitialViewMetricsResult: ReturnType<typeof trackInitialViewMetrics>
   let setLoadEventSpy: jasmine.Spy<(loadEvent: Duration) => void>
+  let notifyPerformanceEntries: (entries: RumPerformanceEntry[]) => void
 
   beforeEach(() => {
     lifeCycle = new LifeCycle()
     const configuration = {} as RumConfiguration
     scheduleViewUpdateSpy = jasmine.createSpy()
     setLoadEventSpy = jasmine.createSpy()
-
-    const navigationTiming = createPerformanceEntry(RumPerformanceEntryType.NAVIGATION)
-    mockGlobalPerformanceBuffer([navigationTiming])
-
-    const clock = mockClock(new Date(0))
-    clock.tick(navigationTiming.responseStart)
-    registerCleanupTask(() => {
-      clock.cleanup()
-    })
+    ;({ notifyPerformanceEntries } = mockPerformanceObserver())
 
     trackInitialViewMetricsResult = trackInitialViewMetrics(
       lifeCycle,
@@ -34,12 +28,11 @@ describe('trackInitialViewMetrics', () => {
       scheduleViewUpdateSpy
     )
 
-    clock.tick(0)
-
     registerCleanupTask(trackInitialViewMetricsResult.stop)
   })
 
   it('should merge metrics from various sources', () => {
+    notifyPerformanceEntries([createPerformanceEntry(RumPerformanceEntryType.NAVIGATION)])
     lifeCycle.notify(LifeCycleEventType.PERFORMANCE_ENTRIES_COLLECTED, [
       createPerformanceEntry(RumPerformanceEntryType.PAINT),
       createPerformanceEntry(RumPerformanceEntryType.FIRST_INPUT),
@@ -64,6 +57,7 @@ describe('trackInitialViewMetrics', () => {
   })
 
   it('calls the `setLoadEvent` callback when the loadEvent timing is known', () => {
+    notifyPerformanceEntries([createPerformanceEntry(RumPerformanceEntryType.NAVIGATION)])
     lifeCycle.notify(LifeCycleEventType.PERFORMANCE_ENTRIES_COLLECTED, [
       createPerformanceEntry(RumPerformanceEntryType.PAINT),
       createPerformanceEntry(RumPerformanceEntryType.FIRST_INPUT),

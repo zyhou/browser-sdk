@@ -1,4 +1,12 @@
-import type { Duration, ClocksState, TimeStamp, Subscription, RelativeTime, Context } from '@datadog/browser-core'
+import type {
+  Duration,
+  ClocksState,
+  TimeStamp,
+  Subscription,
+  RelativeTime,
+  Context,
+  ContextValue,
+} from '@datadog/browser-core'
 import {
   noop,
   PageExitReason,
@@ -18,6 +26,9 @@ import {
   Observable,
   isExperimentalFeatureEnabled,
   ExperimentalFeature,
+  createContextManager,
+  createCustomerDataTrackerManager,
+  CustomerDataType,
 } from '@datadog/browser-core'
 import type { ViewCustomTimings } from '../../rawRumEvent.types'
 import { ViewLoadingType } from '../../rawRumEvent.types'
@@ -158,6 +169,18 @@ export function trackViews(
       currentView.end({ endClocks: startClocks })
       currentView = startNewView(ViewLoadingType.ROUTE_CHANGE, startClocks, options)
     },
+    setViewContext: (context: Context) => {
+      if (!isExperimentalFeatureEnabled(ExperimentalFeature.VIEW_SPECIFIC_CONTEXT)) {
+        return // TODO: remove this check when the feature is enabled by default
+      }
+      currentView.contextManager.setContext(context)
+    },
+    setViewContextProperty: (key: string, value: ContextValue) => {
+      if (!isExperimentalFeatureEnabled(ExperimentalFeature.VIEW_SPECIFIC_CONTEXT)) {
+        return // TODO: remove this check when the feature is enabled by default
+      }
+      currentView.contextManager.setContextProperty(key, value)
+    },
     updateViewName: (name: string) => {
       currentView.updateViewName(name)
     },
@@ -188,6 +211,8 @@ function newView(
   let documentVersion = 0
   let endClocks: ClocksState | undefined
   const location = shallowClone(initialLocation)
+  const viewCustomerDataManager = createCustomerDataTrackerManager()
+  const contextManager = createContextManager(viewCustomerDataManager.getOrCreateTracker(CustomerDataType.View))
 
   let sessionIsActive = true
   let name: string | undefined
@@ -199,7 +224,11 @@ function newView(
     name = viewOptions.name
     service = viewOptions.service || undefined
     version = viewOptions.version || undefined
-    context = isExperimentalFeatureEnabled(ExperimentalFeature.VIEW_SPECIFIC_CONTEXT) ? viewOptions.context : undefined
+    if (isExperimentalFeatureEnabled(ExperimentalFeature.VIEW_SPECIFIC_CONTEXT) && viewOptions.context) {
+      context = viewOptions.context
+      // use ContextManager to update the context so we always sanitize it
+      contextManager.setContext(context)
+    }
   }
 
   const viewCreatedEvent = {
@@ -249,6 +278,7 @@ function newView(
 
   // Initial view update
   triggerViewUpdate()
+  contextManager.changeObservable.subscribe(triggerViewUpdate)
 
   function triggerViewUpdate() {
     cancelScheduleViewUpdate()
@@ -261,7 +291,9 @@ function newView(
       name,
       service,
       version,
-      context,
+      context: isExperimentalFeatureEnabled(ExperimentalFeature.VIEW_SPECIFIC_CONTEXT)
+        ? contextManager.getContext()
+        : undefined,
       loadingType,
       location,
       startClocks,
@@ -281,6 +313,7 @@ function newView(
     service,
     version,
     context,
+    contextManager,
     stopObservable,
     end(options: { endClocks?: ClocksState; sessionIsActive?: boolean } = {}) {
       if (endClocks) {

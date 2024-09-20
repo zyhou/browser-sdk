@@ -33,9 +33,7 @@ import {
   displayAlreadyInitializedError,
   createTrackingConsentState,
   timeStampToClocks,
-  getAnonymousIdFromStorage,
-  setAnonymousIdInStorage,
-  generateAnonymousId,
+  retrieveAnonymousId,
 } from '@datadog/browser-core'
 import type { LifeCycle } from '../domain/lifeCycle'
 import type { ViewHistory } from '../domain/contexts/viewHistory'
@@ -362,6 +360,21 @@ export function makeRumPublicApi(
     trackingConsentState,
     customVitalsState,
     (configuration, deflateWorker, initialViewOptions) => {
+<<<<<<< HEAD
+=======
+      if (isExperimentalFeatureEnabled(ExperimentalFeature.UPDATE_VIEW_NAME)) {
+        /**
+         * Update View Name.
+         *
+         * Enable to manually change the name of the current view.
+         * @param name name of the view
+         * See [Override default RUM view names](https://docs.datadoghq.com/real_user_monitoring/browser/advanced_configuration/#override-default-rum-view-names) for further information.
+         */
+        ;(rumPublicApi as any).updateViewName = monitor((name: string) => {
+          strategy.updateViewName(name)
+        })
+      }
+>>>>>>> congyao/RUM-6075-device-in-session-cookie
       if (isExperimentalFeatureEnabled(ExperimentalFeature.ANONYMOUS_USER_TRACKING)) {
         /**
          * Set the anonymous user id to all events, stored in `@usr.anonymous_id`
@@ -369,15 +382,35 @@ export function makeRumPublicApi(
          * Enable anonymous user tracking feature flag
          * TODO next major release: include this feature by default
          */
-        let anonymousId = getAnonymousIdFromStorage()
-
-        if (!anonymousId) {
-          anonymousId = generateAnonymousId()
-          const { type } = configuration.sessionStoreStrategyType ?? { type: 'LocalStorage' }
-          setAnonymousIdInStorage(type, anonymousId)
-        }
+        const { type } = configuration.sessionStoreStrategyType ?? { type: 'LocalStorage' }
+        const anonymousId = retrieveAnonymousId(type)
         userContextManager.setContextProperty('anonymous_id', anonymousId)
       }
+<<<<<<< HEAD
+=======
+      if (isExperimentalFeatureEnabled(ExperimentalFeature.VIEW_SPECIFIC_CONTEXT)) {
+        /**
+         * Set View Context.
+         *
+         * Enable to manually set the context of the current view.
+         * @param context context of the view
+         */
+        ;(rumPublicApi as any).setViewContext = monitor((context: Context) => {
+          strategy.setViewContext(context)
+        })
+
+        /**
+         * Set View Context Property.
+         *
+         * Enable to manually set a property of the context of the current view.
+         * @param key key of the property
+         * @param value value of the property
+         */
+        ;(rumPublicApi as any).setViewContextProperty = monitor((key: string, value: any) => {
+          strategy.setViewContextProperty(key, value)
+        })
+      }
+>>>>>>> congyao/RUM-6075-device-in-session-cookie
 
       if (configuration.storeContextsAcrossPages) {
         storeContextManager(configuration, globalContextManager, RUM_STORAGE_KEY, CustomerDataType.GlobalContext)

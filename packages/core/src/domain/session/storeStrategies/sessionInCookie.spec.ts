@@ -112,12 +112,14 @@ describe('session in cookie strategy', () => {
 })
 describe('session in cookie strategy with anonymous user tracking', () => {
   const device = 'device-123'
-  const sessionState: SessionState = { id: '123', created: '0', device }
+  const sessionState: SessionState = { id: '123', created: '0' }
   let cookieStorageStrategy: SessionStoreStrategy
+  const ANONYMOUS_ID = '2gosa7pa2gw'
 
   beforeEach(() => {
     mockExperimentalFeatures([ExperimentalFeature.ANONYMOUS_USER_TRACKING])
     cookieStorageStrategy = initCookieStrategy({})
+    spyOn(Math, 'random').and.returnValue(1)
   })
 
   afterEach(() => {
@@ -126,27 +128,41 @@ describe('session in cookie strategy with anonymous user tracking', () => {
   })
 
   it('should persist a session with anonymous id in a cookie', () => {
+    cookieStorageStrategy.persistSession({ ...sessionState, device })
+    const session = cookieStorageStrategy.retrieveSession()
+    expect(session).toEqual({ ...sessionState, device })
+    expect(getCookie(SESSION_STORE_KEY)).toBe(`id=123&created=0&device=${device}`)
+  })
+
+  it('should persist a session with anonymous id in a cookie when it is not present', () => {
+    setCookie(SESSION_STORE_KEY, 'id=123&created=0')
     cookieStorageStrategy.persistSession(sessionState)
     const session = cookieStorageStrategy.retrieveSession()
-    expect(session).toEqual({ ...sessionState })
-    expect(getCookie(SESSION_STORE_KEY)).toBe(`id=123&created=0&device=${device}`)
+    expect(session).toEqual({ ...sessionState, device: ANONYMOUS_ID } as SessionState)
+    expect(getCookie(SESSION_STORE_KEY)).toBe(`id=123&created=0&device=${ANONYMOUS_ID}`)
   })
 
   it('should expire a session with anonymous id in a cookie', () => {
     mockCookie(`id=123&created=0&device=${device}`)
 
-    cookieStorageStrategy.persistSession(sessionState)
+    cookieStorageStrategy.persistSession({ ...sessionState, device })
     cookieStorageStrategy.expireSession()
     const session = cookieStorageStrategy.retrieveSession()
     expect(session).toEqual({ isExpired: '1', device })
     expect(getCookie(SESSION_STORE_KEY)).toBe(`isExpired=1&device=${device}`)
   })
 
-  it('should return a new anonymous id if session cookie does not exist', () => {
-    setCookie(SESSION_STORE_KEY, '{test:42}', 1000)
-    spyOn(Math, 'random').and.returnValue(1)
+  it('should return a new anonymous id if session cookie is not valid', () => {
+    setCookie(SESSION_STORE_KEY, '{test:42}')
     const session = cookieStorageStrategy.retrieveSession()
     expect(session).toEqual({ device: '2gosa7pa2gw' })
-    expect(getCookie(SESSION_STORE_KEY)).toBe('device=2gosa7pa2gw')
+    expect(getCookie(SESSION_STORE_KEY)).toBe(`device=${ANONYMOUS_ID}`)
+  })
+
+  it('should set a new anonymous id if session cookie does not contain device id', () => {
+    setCookie(SESSION_STORE_KEY, 'id=123&created=0')
+    const session = cookieStorageStrategy.retrieveSession()
+    expect(session).toEqual({ id: '123', created: '0', device: '2gosa7pa2gw' })
+    expect(getCookie(SESSION_STORE_KEY)).toBe(`id=123&created=0&device=${ANONYMOUS_ID}`)
   })
 })

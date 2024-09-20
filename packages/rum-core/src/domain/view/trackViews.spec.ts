@@ -395,9 +395,7 @@ describe('view metrics', () => {
       expect(getViewUpdateCount()).toEqual(1)
       expect(getViewUpdate(0).initialViewMetrics).toEqual({})
 
-      lifeCycle.notify(LifeCycleEventType.PERFORMANCE_ENTRIES_COLLECTED, [
-        createPerformanceEntry(RumPerformanceEntryType.LAYOUT_SHIFT),
-      ])
+      notifyPerformanceEntries([createPerformanceEntry(RumPerformanceEntryType.LAYOUT_SHIFT)])
 
       expect(getViewUpdateCount()).toEqual(1)
 
@@ -420,9 +418,7 @@ describe('view metrics', () => {
       clock.tick(0) // run immediate timeouts (mostly for `trackNavigationTimings`)
       expect(getViewCreateCount()).toEqual(2)
 
-      lifeCycle.notify(LifeCycleEventType.PERFORMANCE_ENTRIES_COLLECTED, [
-        createPerformanceEntry(RumPerformanceEntryType.LAYOUT_SHIFT),
-      ])
+      notifyPerformanceEntries([createPerformanceEntry(RumPerformanceEntryType.LAYOUT_SHIFT)])
 
       clock.tick(THROTTLE_VIEW_UPDATE_PERIOD)
 

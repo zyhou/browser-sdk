@@ -28,7 +28,6 @@
   "devDependencies": {
     "@types/react": "18.3.11",
     "@types/react-dom": "18.3.1",
-    "@types/uuid": "^10",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-router-dom": "6.27.0"
@@ -43,8 +42,5 @@
   },
   "publishConfig": {
     "access": "public"
-  },
-  "dependencies": {
-    "uuid": "10.0.0"
   }
 }
